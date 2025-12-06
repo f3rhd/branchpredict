@@ -34,8 +34,8 @@ struct load_instruction_t : memory_instruction_t {
     load_instruction_t(
         LOAD_INSTRUCTION_TYPE type_,
         const reg_id_t dest_reg_, 
-        const reg_id_t base_reg_, 
-        offset_t offset_
+        offset_t offset_,
+        const reg_id_t base_reg_
     ) : 
         memory_instruction_t(dest_reg_,base_reg_,offset_), type(type_) {}
 };
@@ -51,8 +51,8 @@ struct store_instruction_t : memory_instruction_t {
     store_instruction_t(
         STORE_INSTRUCTION_TYPE type_,
         const reg_id_t dest_reg_, 
-        const reg_id_t base_reg_, 
-        offset_t offset_
+        offset_t offset_,
+        const reg_id_t base_reg_
     ) : 
         memory_instruction_t(dest_reg_,base_reg_,offset_), type(type_) {}
 };

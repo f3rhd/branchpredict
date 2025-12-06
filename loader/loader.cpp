@@ -1,23 +1,146 @@
-#include "loader.h"
 #include <iostream>
+#include <fstream>
+
+#include "loader.h"
 #include "../cpu/cpu.h"
 
-void loader_t::load_program(const std::string& src,CPU& cpu) {
+#define EXPECT(EXPECTED_TOKEN_TYPE)                   \
+    if (_current_token.type != EXPECTED_TOKEN_TYPE)   \
+    {                                                 \
+        std::cout << "Error : Token did not meet the expected type(Cause : " << _current_token.word << ")" ;               \
+        exit(EXIT_FAILURE);                                       \
+    }                                                             \
+    
+void loader_t::load_program(const std::string &src, CPU &cpu)  {
     std::ifstream file(src);
     if (!file.is_open()) {
         std::cout << "File path " << src << " doesn't exist.\n";
         exit(EXIT_FAILURE);
     }
-    std::string line_raw;
-    while (std::getline(file, line_raw)) {
-        tokenize_line_text(line_raw);
-        load_instruction();
-    }
-    file.close();
-    cpu.load_program(std::move(_program));
+        std::string line_raw;
+        while (std::getline(file, line_raw)) {
+            tokenize_line_text(line_raw);
+            _current_index = 0;
+            _current_token = _line_tokens[0];
+            load_instruction();
+        }
+        file.close();
+        cpu.load_program(std::move(_program));
 }
 
 void loader_t::load_instruction() {
+    switch (_current_token.type) {
+    case TOKEN_TYPE::LOAD_OPERATION:
+    case TOKEN_TYPE::STORE_OPERATION:
+        load_mem_instruction();
+        break;
+    case TOKEN_TYPE::ALU_OPERATION_R:
+        load_alui_instruction();
+        break;
+    case TOKEN_TYPE::ALU_OPERATION_I:
+        load_alur_instruction();
+        break;
+    case TOKEN_TYPE::BRANCH_OPERATION:
+        load_branch_instruction();
+        break;
+    case TOKEN_TYPE::JUMP_OPERATION:
+        load_jump_instruction();
+        break;
+    case TOKEN_TYPE::LOAD_UPPER:
+        load_load_upperimm_instruction();
+        break;
+    case TOKEN_TYPE::AUIPC:
+        load_auipc_instruction();
+        break;
+    case TOKEN_TYPE::LABEL:
+        load_label();
+    default:
+        break;
+    }
+}
+
+// @call : current token is load or memory instruction
+void loader_t::load_mem_instruction() {
+    token_t tmp = _current_token;
+    advance();
+    // we should be register token
+    EXPECT(TOKEN_TYPE::REGISTER);
+    reg_id_t dest_reg_id = lookup_t::reg_id(_current_token.word);
+    advance();
+    // we should be comma
+    EXPECT(TOKEN_TYPE::COMMA);
+
+    advance();
+
+    // we should be imm
+    EXPECT(TOKEN_TYPE::IMMEDIATE);
+    offset_t offset = std::stoi(_current_token.word);
+
+    advance();
+    // we should be left paranthesis
+    EXPECT(TOKEN_TYPE::LPAREN);
+
+    advance();
+    // we should be register
+    EXPECT(TOKEN_TYPE::REGISTER);
+    reg_id_t src_reg_id = lookup_t::reg_id(_current_token.word);
+
+    if(tmp.type == TOKEN_TYPE::LOAD_OPERATION) {
+        load_instruction_t::LOAD_INSTRUCTION_TYPE type = lookup_t::load_type(tmp.word);
+        _program.emplace_back(std::make_unique<load_instruction_t>(
+            type,
+            dest_reg_id,
+            offset,
+            src_reg_id
+        ));
+    } else if(tmp.type == TOKEN_TYPE::STORE_OPERATION) {
+        store_instruction_t::STORE_INSTRUCTION_TYPE type = lookup_t::store_type(tmp.word);
+        _program.emplace_back(std::make_unique<store_instruction_t>(
+            type,
+            dest_reg_id,
+            offset,
+            src_reg_id
+        ));
+    }
+}
+
+// @call : current token is immediate alu operation
+void loader_t::load_alui_instruction() {
+    
+}
+
+void loader_t::load_alur_instruction() {
+
+}
+
+void loader_t::load_branch_instruction() {
+
+}
+
+void loader_t::load_jump_instruction() {
+
+}
+
+void loader_t::load_load_upperimm_instruction() {
+
+}
+
+void loader_t::load_auipc_instruction() {
+
+}
+
+// @call : current token is label
+void loader_t::load_label() {
+    label_id_t unique_id = unique_label_id();
+    std::unique_ptr<label_instruction_t> label_instr = std::make_unique<label_instruction_t>(unique_id);
+    // insert new entry to the label map
+    _label_map.emplace(_current_token.word, unique_id);
+    _program.push_back(std::move(label_instr));
+    advance();
+}
+label_id_t loader_t::unique_label_id() {
+    static label_id_t unique_id = 0;
+    return unique_id++;
 }
 void loader_t::advance() {
 
