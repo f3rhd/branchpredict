@@ -153,7 +153,13 @@ void branch_instruction_t::execute(CPU& cpu) {
         break;
     }
     //std::cout << _instruction_str << std::endl;
+    bool predicted = cpu.predict_branch(_id);
     if (should_branch) cpu.jump_to_label(_label_id);
+    if (predicted == should_branch) {
+        cpu.incr_correct_predictions();
+    }
+    cpu.incr_total_branches();
+    cpu.update_bht(_id,should_branch);
 }
 
 void jump_instruction_t::execute(CPU& cpu) {

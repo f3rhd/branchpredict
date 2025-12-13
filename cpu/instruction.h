@@ -4,7 +4,7 @@
 class CPU;
 struct instruction_t {
     virtual void execute(CPU &cpu) = 0;
-    virtual label_id_t target_label() { return no_label; }
+    virtual label_id_t target_label() { return NO_LABEL; }
     virtual bool is_label_instruction() { return false; }
     virtual ~instruction_t() = default;
 };
