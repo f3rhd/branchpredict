@@ -99,7 +99,7 @@ void parser_t::parse_mem_instruction() {
     advance();
     // we should be register
     EXPECT(TOKEN_TYPE::REGISTER);
-    reg_id_t src_reg_id = lookup_t::reg_id(_current_token->word);
+    reg_id_t base_reg_id = lookup_t::reg_id(_current_token->word);
 
     if(tmp.type == TOKEN_TYPE::LOAD_OPERATION) {
         load_instruction_t::LOAD_INSTRUCTION_TYPE type = lookup_t::load_type(tmp.word);
@@ -107,7 +107,7 @@ void parser_t::parse_mem_instruction() {
             type,
             dest_reg_id,
             offset,
-            src_reg_id
+            base_reg_id
         ));
     } else if(tmp.type == TOKEN_TYPE::STORE_OPERATION) {
         store_instruction_t::STORE_INSTRUCTION_TYPE type = lookup_t::store_type(tmp.word);
@@ -115,7 +115,7 @@ void parser_t::parse_mem_instruction() {
             type,
             dest_reg_id,
             offset,
-            src_reg_id
+            base_reg_id
         ));
     }
     advance();
