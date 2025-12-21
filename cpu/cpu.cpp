@@ -8,7 +8,7 @@ void CPU::d_cache_commit(memory_addr_t mem_addr, data_t data) {
 		_cycles += CACHE_MISS_PENALTY;
 		_d_cache.emplace(mem_addr, data);
 	}
-	else 
+	else
 		_d_cache[mem_addr] = data;
 }
 
@@ -17,7 +17,7 @@ void CPU::reg_file_commit(const reg_id_t& reg_id, data_t data) {
 		std::cout << "Tried to write to a non-existing register";
 		return;
 	}
-	if (reg_id == 0) 
+	if (reg_id == 0)
 		return;
 	if (_reg_file.find(reg_id) == _reg_file.end())
 		_reg_file.emplace(reg_id, data);
@@ -44,33 +44,34 @@ void CPU::load_program(program_t&& program_) {
 }
 
 void CPU::log(std::ostream& os) {
-    const size_t COLS = 4;
-    
-    const int VAL_WIDTH = 12; 
+	const size_t COLS = 4;
 
-    os << "--------------------------------------------------------------\n";
-    os << "CPU Register File (Signed Values) \n";
-    os << "--------------------------------------------------------------\n";
+	const int VAL_WIDTH = 12;
 
-    for (size_t reg_id = 0; reg_id < 32; reg_id++) {
-        os << std::left << "x" << std::setw(2) << reg_id << ": ";
-        
-        os << std::right << std::setw(VAL_WIDTH) 
-           << _reg_file[static_cast<reg_id_t>(reg_id)]._signed;
+	os << "--------------------------------------------------------------\n";
+	os << "CPU Register File (Signed Values) \n";
+	os << "--------------------------------------------------------------\n";
 
-        // Check if we need to start a new line
-        if ((reg_id + 1) % COLS == 0) {
-            os << "\n";
-        } else {
-            os << "  |  "; 
-        }
-    }
-    
-    if (32 % COLS != 0) {
-        os << "\n";
-    }
+	for (size_t reg_id = 0; reg_id < 32; reg_id++) {
+		os << std::left << "x" << std::setw(2) << reg_id << ": ";
 
-    os << "--------------------------------------------------------------\n";
+		os << std::right << std::setw(VAL_WIDTH)
+			<< _reg_file[static_cast<reg_id_t>(reg_id)]._signed;
+
+		// Check if we need to start a new line
+		if ((reg_id + 1) % COLS == 0) {
+			os << "\n";
+		}
+		else {
+			os << "  |  ";
+		}
+	}
+
+	if (32 % COLS != 0) {
+		os << "\n";
+	}
+
+	os << "--------------------------------------------------------------\n";
 	os << "Total Branch Executions : " << _total_branches << "\n";
 	os << "Correct Predictions : " << _correct_predictions << "\n";
 	os << "Total Mispredictions : " << _total_branches - _correct_predictions << "\n";
@@ -123,7 +124,7 @@ CPU::CPU(CPU::PREDICTOR_TYPE type) {
 	case(CPU::PREDICTOR_TYPE::GSHARE):
 		_branch_predictor = std::make_unique<gshare_predictor_t>();
 		break;
-	// shouldnt happen
+		// shouldnt happen
 	default:
 		break;
 	}
@@ -144,7 +145,7 @@ void CPU::execute() {
 	}
 	auto old_pc = _pc;
 	_program[_pc]->execute(*this);
-	if(old_pc == _pc)
+	if (old_pc == _pc)
 		_pc++;
 	_cycles++;
 }

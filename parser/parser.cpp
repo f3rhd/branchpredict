@@ -10,843 +10,858 @@
         std::cout << "\033[31m" << "Error(" << _current_token->row << "," <<  _current_token->column << ")\033[0m: " << "Token " << "'" << _current_token->word << "' did not meet the expected type"  << "\n" ;               \
         exit(EXIT_FAILURE);                                       \
     }                                                             \
-    
-program_t&& parser_t::parse_program(const std::string &src)  {
-    std::ifstream file(src);
-    if (!file.is_open()) {
-        std::cout << "File path " << src << " doesn't exist.\n";
-        exit(EXIT_FAILURE);
-    }
-    std::string line_raw;
-    while (std::getline(file, line_raw)) {
-        _line_number++;
-        tokenize_line_text(line_raw);
-        _current_index = 0;
-        _current_token = &_line_tokens[0];
-        parse_instruction();
-    }
-    // resolve the unresolved instructions
-    for (auto& branch_instruction_data : _unresolved_branch_instructions) {
-        if(_label_map.find(branch_instruction_data.second) != _label_map.end()) {
-            branch_instruction_data.first->set_target_label(_label_map.at(branch_instruction_data.second));
-        }else{
-            std::cout << "Error : Unknown label identifier was found(Cause : " << branch_instruction_data.second << ")";
-        }
-    }
-    for (auto&  jump_instruction_data : _unresolved_jump_instructions) {
-        if(_label_map.find(jump_instruction_data.second) != _label_map.end()) {
-            jump_instruction_data.first->set_target_label(_label_map.at(jump_instruction_data.second));
-        }else{
-            std::cout << "Error : Unknown label identifier was found(Cause : " << jump_instruction_data.second << ")";
-        }
-    }
-    file.close();
-    return std::move(_program);
+
+program_t&& parser_t::parse_program(const std::string& src) {
+	std::ifstream file(src);
+	if (!file.is_open()) {
+		std::cout << "File path " << src << " doesn't exist.\n";
+		exit(EXIT_FAILURE);
+	}
+	std::string line_raw;
+	while (std::getline(file, line_raw)) {
+		_line_number++;
+		tokenize_line_text(line_raw);
+		_current_index = 0;
+		_current_token = &_line_tokens[0];
+		parse_instruction();
+	}
+	// resolve the unresolved instructions
+	for (auto& branch_instruction_data : _unresolved_branch_instructions) {
+		if (_label_map.find(branch_instruction_data.second) != _label_map.end()) {
+			branch_instruction_data.first->set_target_label(_label_map.at(branch_instruction_data.second));
+		}
+		else {
+			std::cout << "Error : Unknown label identifier was found(Cause : " << branch_instruction_data.second << ")";
+		}
+	}
+	for (auto& jump_instruction_data : _unresolved_jump_instructions) {
+		if (_label_map.find(jump_instruction_data.second) != _label_map.end()) {
+			jump_instruction_data.first->set_target_label(_label_map.at(jump_instruction_data.second));
+		}
+		else {
+			std::cout << "Error : Unknown label identifier was found(Cause : " << jump_instruction_data.second << ")";
+		}
+	}
+	file.close();
+	return std::move(_program);
 }
 
 void parser_t::parse_instruction() {
-    switch (_current_token->type) {
-    case TOKEN_TYPE::LOAD_OPERATION:
-    case TOKEN_TYPE::STORE_OPERATION:
-        parse_mem_instruction();
-        break;
-    case TOKEN_TYPE::ALU_OPERATION_R:
-    case TOKEN_TYPE::ALU_OPERATION_I:
-        parse_alu_instruction();
-        break;
-    case TOKEN_TYPE::BRANCH_OPERATION:
-        parse_branch_instruction();
-        break;
-    case TOKEN_TYPE::JUMP_OPERATION:
-        parse_jump_instruction();
-        break;
-    case TOKEN_TYPE::LOAD_UPPER:
-    case TOKEN_TYPE::AUIPC:
-        parse_upperimm_instruction();
-        break;
-    case TOKEN_TYPE::LABEL:
-        parse_label();
-        break;
-    case TOKEN_TYPE::PSUEDO_OPERATION:
-        parse_pseudo_instruction();
-        break;
-    default:
-        break;
-    }
+	switch (_current_token->type) {
+	case TOKEN_TYPE::LOAD_OPERATION:
+	case TOKEN_TYPE::STORE_OPERATION:
+		parse_mem_instruction();
+		break;
+	case TOKEN_TYPE::ALU_OPERATION_R:
+	case TOKEN_TYPE::ALU_OPERATION_I:
+		parse_alu_instruction();
+		break;
+	case TOKEN_TYPE::BRANCH_OPERATION:
+		parse_branch_instruction();
+		break;
+	case TOKEN_TYPE::JUMP_OPERATION:
+		parse_jump_instruction();
+		break;
+	case TOKEN_TYPE::LOAD_UPPER:
+	case TOKEN_TYPE::AUIPC:
+		parse_upperimm_instruction();
+		break;
+	case TOKEN_TYPE::LABEL:
+		parse_label();
+		break;
+	case TOKEN_TYPE::PSUEDO_OPERATION:
+		parse_pseudo_instruction();
+		break;
+	default:
+		break;
+	}
 }
 
 // @call : current token is load or memory instruction
 void parser_t::parse_mem_instruction() {
-    token_t tmp = *_current_token;
-    advance();
-    // we should be register token
-    EXPECT(TOKEN_TYPE::REGISTER);
-    reg_id_t dest_reg_id = lookup_t::reg_id(_current_token->word);
-    advance();
-    // we should be comma
-    EXPECT(TOKEN_TYPE::COMMA);
+	token_t tmp = *_current_token;
+	advance();
+	// we should be register token
+	EXPECT(TOKEN_TYPE::REGISTER);
+	reg_id_t dest_reg_id = lookup_t::reg_id(_current_token->word);
+	advance();
+	// we should be comma
+	EXPECT(TOKEN_TYPE::COMMA);
 
-    advance();
+	advance();
 
-    // we should be imm
-    EXPECT(TOKEN_TYPE::IMMEDIATE);
-    offset_t offset = std::stoll(_current_token->word);
+	// we should be imm
+	EXPECT(TOKEN_TYPE::IMMEDIATE);
+	offset_t offset = std::stoll(_current_token->word);
 
-    advance();
-    // we should be left paranthesis
-    EXPECT(TOKEN_TYPE::LPAREN);
+	advance();
+	// we should be left paranthesis
+	EXPECT(TOKEN_TYPE::LPAREN);
 
-    advance();
-    // we should be register
-    EXPECT(TOKEN_TYPE::REGISTER);
-    reg_id_t base_reg_id = lookup_t::reg_id(_current_token->word);
+	advance();
+	// we should be register
+	EXPECT(TOKEN_TYPE::REGISTER);
+	reg_id_t base_reg_id = lookup_t::reg_id(_current_token->word);
 
-    if(tmp.type == TOKEN_TYPE::LOAD_OPERATION) {
-        load_instruction_t::LOAD_INSTRUCTION_TYPE type = lookup_t::load_type(tmp.word);
-        _program.emplace_back(std::make_unique<load_instruction_t>(
-            type,
-            dest_reg_id,
-            offset,
-            base_reg_id
-        ));
-    } else if(tmp.type == TOKEN_TYPE::STORE_OPERATION) {
-        store_instruction_t::STORE_INSTRUCTION_TYPE type = lookup_t::store_type(tmp.word);
-        _program.emplace_back(std::make_unique<store_instruction_t>(
-            type,
-            dest_reg_id,
-            offset,
-            base_reg_id
-        ));
-    }
-    advance();
-    EXPECT(TOKEN_TYPE::RPAREN);
+	if (tmp.type == TOKEN_TYPE::LOAD_OPERATION) {
+		load_instruction_t::LOAD_INSTRUCTION_TYPE type = lookup_t::load_type(tmp.word);
+		_program.emplace_back(std::make_unique<load_instruction_t>(
+			type,
+			dest_reg_id,
+			offset,
+			base_reg_id
+		));
+	}
+	else if (tmp.type == TOKEN_TYPE::STORE_OPERATION) {
+		store_instruction_t::STORE_INSTRUCTION_TYPE type = lookup_t::store_type(tmp.word);
+		_program.emplace_back(std::make_unique<store_instruction_t>(
+			type,
+			dest_reg_id,
+			offset,
+			base_reg_id
+		));
+	}
+	advance();
+	EXPECT(TOKEN_TYPE::RPAREN);
 }
 
 // @call : current token is alu operation
 void parser_t::parse_alu_instruction() {
-    token_t tmp = *_current_token;
-    bool is_imm = false;
-    alu_instruction_t::ALU_INSTRUCTION_TYPE type;
-    advance();
-    EXPECT(TOKEN_TYPE::REGISTER);
-    reg_id_t dest_reg_id = lookup_t::reg_id(_current_token->word);
-    advance();
-    EXPECT(TOKEN_TYPE::COMMA);
-    advance();
-    EXPECT(TOKEN_TYPE::REGISTER);
-    reg_id_t src1_reg_id = lookup_t::reg_id(_current_token->word);
-    advance();
-    EXPECT(TOKEN_TYPE::COMMA);
-    advance();
-    int64_t src2_val;
-    // if our operation was imm
-    if(lookup_t::alui_type(tmp.word) != alu_instruction_t::ALU_INSTRUCTION_TYPE::UNKNOWN) {
-        type = lookup_t::alui_type(tmp.word);
-        EXPECT(TOKEN_TYPE::IMMEDIATE);
-        is_imm = true;
-        if(_current_token->word[0] == '0' && _current_token->word[1] == 'x')
-            src2_val = std::stoll(_current_token->word,nullptr,16);
-        else
-            src2_val = std::stoll(_current_token->word);
-    } else if(lookup_t::alur_type(tmp.word) != alu_instruction_t::ALU_INSTRUCTION_TYPE::UNKNOWN) {
-        type = lookup_t::alur_type(tmp.word);
-        EXPECT(TOKEN_TYPE::REGISTER);
-        src2_val = lookup_t::reg_id(_current_token->word);
-    }
-    advance();
-    _program.emplace_back(
-        std::make_unique<alu_instruction_t>(
-            type,
-            dest_reg_id,
-            src1_reg_id,
-            src2_val,
-            is_imm
-        )
-    );
+	token_t tmp = *_current_token;
+	bool is_imm = false;
+	alu_instruction_t::ALU_INSTRUCTION_TYPE type;
+	advance();
+	EXPECT(TOKEN_TYPE::REGISTER);
+	reg_id_t dest_reg_id = lookup_t::reg_id(_current_token->word);
+	advance();
+	EXPECT(TOKEN_TYPE::COMMA);
+	advance();
+	EXPECT(TOKEN_TYPE::REGISTER);
+	reg_id_t src1_reg_id = lookup_t::reg_id(_current_token->word);
+	advance();
+	EXPECT(TOKEN_TYPE::COMMA);
+	advance();
+	int64_t src2_val;
+	// if our operation was imm
+	if (lookup_t::alui_type(tmp.word) != alu_instruction_t::ALU_INSTRUCTION_TYPE::UNKNOWN) {
+		type = lookup_t::alui_type(tmp.word);
+		EXPECT(TOKEN_TYPE::IMMEDIATE);
+		is_imm = true;
+		if (_current_token->word[0] == '0' && _current_token->word[1] == 'x')
+			src2_val = std::stoll(_current_token->word, nullptr, 16);
+		else
+			src2_val = std::stoll(_current_token->word);
+	}
+	else if (lookup_t::alur_type(tmp.word) != alu_instruction_t::ALU_INSTRUCTION_TYPE::UNKNOWN) {
+		type = lookup_t::alur_type(tmp.word);
+		EXPECT(TOKEN_TYPE::REGISTER);
+		src2_val = lookup_t::reg_id(_current_token->word);
+	}
+	advance();
+	_program.emplace_back(
+		std::make_unique<alu_instruction_t>(
+			type,
+			dest_reg_id,
+			src1_reg_id,
+			src2_val,
+			is_imm
+		)
+	);
 }
 
 // @call : current token is branch instruction
 void parser_t::parse_branch_instruction() {
-    branch_instruction_t::BRANCH_INSTRUCTION_TYPE type = lookup_t::branch_type(_current_token->word);
-    advance();
-    EXPECT(TOKEN_TYPE::REGISTER);
-    reg_id_t src1_id = lookup_t::reg_id(_current_token->word);
-    advance();
-    EXPECT(TOKEN_TYPE::COMMA);
-    advance();
-    EXPECT(TOKEN_TYPE::REGISTER);
-    reg_id_t src2_id = lookup_t::reg_id(_current_token->word);
-    advance();
-    EXPECT(TOKEN_TYPE::COMMA);
-    advance();
-    EXPECT(TOKEN_TYPE::IDENTIFIER);
-    label_id_t label_id = FORWARD_LABEL;
-    if(_label_map.find(_current_token->word) != _label_map.end()) {
-        label_id = _label_map.at(_current_token->word);
-    }
-    auto branch_instruction = std::make_unique<branch_instruction_t>(
-        type,
-        src1_id,
-        src2_id,
-        label_id,
-        unique_branch_id()
-    );
-    auto branch_instruction_ptr = branch_instruction.get();
-    _program.push_back(std::move(branch_instruction));
-    // couldnt find the label identifier save it for later
-    if(label_id == FORWARD_LABEL) {
-        _unresolved_branch_instructions.emplace_back(branch_instruction_ptr,_current_token->word);
-    }
+	branch_instruction_t::BRANCH_INSTRUCTION_TYPE type = lookup_t::branch_type(_current_token->word);
+	advance();
+	EXPECT(TOKEN_TYPE::REGISTER);
+	reg_id_t src1_id = lookup_t::reg_id(_current_token->word);
+	advance();
+	EXPECT(TOKEN_TYPE::COMMA);
+	advance();
+	EXPECT(TOKEN_TYPE::REGISTER);
+	reg_id_t src2_id = lookup_t::reg_id(_current_token->word);
+	advance();
+	EXPECT(TOKEN_TYPE::COMMA);
+	advance();
+	EXPECT(TOKEN_TYPE::IDENTIFIER);
+	label_id_t label_id = FORWARD_LABEL;
+	if (_label_map.find(_current_token->word) != _label_map.end()) {
+		label_id = _label_map.at(_current_token->word);
+	}
+	auto branch_instruction = std::make_unique<branch_instruction_t>(
+		type,
+		src1_id,
+		src2_id,
+		label_id,
+		unique_branch_id()
+	);
+	auto branch_instruction_ptr = branch_instruction.get();
+	_program.push_back(std::move(branch_instruction));
+	// couldnt find the label identifier save it for later
+	if (label_id == FORWARD_LABEL) {
+		_unresolved_branch_instructions.emplace_back(branch_instruction_ptr, _current_token->word);
+	}
 }
 // @call : current token is jump instruction
 void parser_t::parse_jump_instruction() {
-    label_id_t label_id = FORWARD_LABEL;
-    jump_instruction_t::JUMP_INSTRUCTION_TYPE type = lookup_t::jump_type(_current_token->word);
-    advance();
-    EXPECT(TOKEN_TYPE::REGISTER);
-    reg_id_t dest_reg = lookup_t::reg_id(_current_token->word);
-    reg_id_t src1 = INVALID_REG_ID;
-    advance();
-    EXPECT(TOKEN_TYPE::COMMA);
-    advance();
-    if(type == jump_instruction_t::JUMP_INSTRUCTION_TYPE::JAL) {
-        EXPECT(TOKEN_TYPE::IDENTIFIER);
-        if(_label_map.find(_current_token->word) != _label_map.end()) {
-            label_id = _label_map.at(_current_token->word);
-        }
-        // src1 and imm fields can be garbage values in this case
-        auto jump_instruction = std::make_unique<jump_instruction_t>(
-            type,
-            dest_reg,
-            src1,
-            label_id,
-            0
-        );
-        auto jump_instruction_ptr = jump_instruction.get();
-        _program.push_back(
-            std::move(jump_instruction)
-        );
-        // we werent able to find the label maybe we will next time
-        if(label_id == FORWARD_LABEL)
-            _unresolved_jump_instructions.emplace_back(jump_instruction_ptr,_current_token->word);
-        return;
-    }
-    EXPECT(TOKEN_TYPE::REGISTER);
-    src1 = lookup_t::reg_id(_current_token->word);
-    advance();
-    EXPECT(TOKEN_TYPE::COMMA);
-    advance();
-    EXPECT(TOKEN_TYPE::IMMEDIATE);
-    int64_t imm;
-    if(_current_token->word[0] == '0' && _current_token->word[1] == 'x')
-        imm = std::stoll(_current_token->word,nullptr,16);
-    else
-        imm= std::stoll(_current_token->word);
-    // here we dont care about the label_id field
-    _program.emplace_back(
-        std::make_unique<jump_instruction_t>(
-            type,
-            dest_reg,
-            src1,
-            label_id,
-            imm
-    ));
+	label_id_t label_id = FORWARD_LABEL;
+	jump_instruction_t::JUMP_INSTRUCTION_TYPE type = lookup_t::jump_type(_current_token->word);
+	advance();
+	EXPECT(TOKEN_TYPE::REGISTER);
+	reg_id_t dest_reg = lookup_t::reg_id(_current_token->word);
+	reg_id_t src1 = INVALID_REG_ID;
+	advance();
+	EXPECT(TOKEN_TYPE::COMMA);
+	advance();
+	if (type == jump_instruction_t::JUMP_INSTRUCTION_TYPE::JAL) {
+		EXPECT(TOKEN_TYPE::IDENTIFIER);
+		if (_label_map.find(_current_token->word) != _label_map.end()) {
+			label_id = _label_map.at(_current_token->word);
+		}
+		// src1 and imm fields can be garbage values in this case
+		auto jump_instruction = std::make_unique<jump_instruction_t>(
+			type,
+			dest_reg,
+			src1,
+			label_id,
+			0
+		);
+		auto jump_instruction_ptr = jump_instruction.get();
+		_program.push_back(
+			std::move(jump_instruction)
+		);
+		// we werent able to find the label maybe we will next time
+		if (label_id == FORWARD_LABEL)
+			_unresolved_jump_instructions.emplace_back(jump_instruction_ptr, _current_token->word);
+		return;
+	}
+	EXPECT(TOKEN_TYPE::REGISTER);
+	src1 = lookup_t::reg_id(_current_token->word);
+	advance();
+	EXPECT(TOKEN_TYPE::COMMA);
+	advance();
+	EXPECT(TOKEN_TYPE::IMMEDIATE);
+	int64_t imm;
+	if (_current_token->word[0] == '0' && _current_token->word[1] == 'x')
+		imm = std::stoll(_current_token->word, nullptr, 16);
+	else
+		imm = std::stoll(_current_token->word);
+	// here we dont care about the label_id field
+	_program.emplace_back(
+		std::make_unique<jump_instruction_t>(
+			type,
+			dest_reg,
+			src1,
+			label_id,
+			imm
+		));
 }
 
 // @call : current token is lui or auipc
 void parser_t::parse_upperimm_instruction() {
-    token_t tmp = *_current_token;
-    advance();
-    EXPECT(TOKEN_TYPE::REGISTER);
-    reg_id_t dest_reg = lookup_t::reg_id(_current_token->word);
-    advance();
-    EXPECT(TOKEN_TYPE::COMMA);
-    advance();
-    EXPECT(TOKEN_TYPE::IMMEDIATE);
-    int64_t imm;
-    if(_current_token->word[0] == '0' && _current_token->word[1] == 'x')
+	token_t tmp = *_current_token;
+	advance();
+	EXPECT(TOKEN_TYPE::REGISTER);
+	reg_id_t dest_reg = lookup_t::reg_id(_current_token->word);
+	advance();
+	EXPECT(TOKEN_TYPE::COMMA);
+	advance();
+	EXPECT(TOKEN_TYPE::IMMEDIATE);
+	int64_t imm;
+	if (_current_token->word[0] == '0' && _current_token->word[1] == 'x')
 
-        imm = std::stoll(_current_token->word,nullptr,16);
-    else
-        imm= std::stoll(_current_token->word);
-    if(tmp.word == "lui")
-        _program.emplace_back(std::make_unique<load_upper_imm_instruction_t>(
-            dest_reg,
-            imm
-        )
-        );
-    else if(tmp.word == "auipc")
-        _program.emplace_back(std::make_unique<auipc_instruction_t>(
-            dest_reg,
-            imm
-        )
-        );
+		imm = std::stoll(_current_token->word, nullptr, 16);
+	else
+		imm = std::stoll(_current_token->word);
+	if (tmp.word == "lui")
+		_program.emplace_back(std::make_unique<load_upper_imm_instruction_t>(
+			dest_reg,
+			imm
+		)
+		);
+	else if (tmp.word == "auipc")
+		_program.emplace_back(std::make_unique<auipc_instruction_t>(
+			dest_reg,
+			imm
+		)
+		);
 }
 
 // @call : current token is label
 void parser_t::parse_label() {
-    label_id_t unique_id = unique_label_id();
-    std::unique_ptr<label_instruction_t> label_instr = std::make_unique<label_instruction_t>(unique_id);
-    // insert new entry to the label map
-    _label_map.emplace(_current_token->word, unique_id);
-    _program.push_back(std::move(label_instr));
-    advance();
+	label_id_t unique_id = unique_label_id();
+	std::unique_ptr<label_instruction_t> label_instr = std::make_unique<label_instruction_t>(unique_id);
+	// insert new entry to the label map
+	_label_map.emplace(_current_token->word, unique_id);
+	_program.push_back(std::move(label_instr));
+	advance();
 }
 label_id_t parser_t::unique_label_id() {
-    static label_id_t unique_id = FORWARD_LABEL + 1;
-    return unique_id++;
+	static label_id_t unique_id = FORWARD_LABEL + 1;
+	return unique_id++;
 }
 branch_instruction_id_t parser_t::unique_branch_id() {
-    static label_id_t unique_id = 0;
-    return unique_id++;
+	static label_id_t unique_id = 0;
+	return unique_id++;
 }
 void parser_t::advance() {
 
-    if (_current_token->type != TOKEN_TYPE::NEW_LINE) {
+	if (_current_token->type != TOKEN_TYPE::NEW_LINE) {
 		_current_index++;
 		_current_token = &_line_tokens[_current_index];
 	}
 }
 
 void parser_t::tokenize_line_text(const std::string& line_raw) {
-    _line_tokens.clear();
-    _column = 0;
-    size_t comment_pos = line_raw.find('#');
-    std::string line = (comment_pos != std::string::npos) ? line_raw.substr(0, comment_pos) : line_raw;
-    if (line == line_raw) {
-        comment_pos = line_raw.find(';');
-        line = (comment_pos != std::string::npos) ? line_raw.substr(0, comment_pos) : line_raw;
-    }
-    size_t i = 0;
-    while (i < line.size()) {
-        _column++;
-        char ch = line[i];
+	_line_tokens.clear();
+	_column = 0;
+	size_t comment_pos = line_raw.find('#');
+	std::string line = (comment_pos != std::string::npos) ? line_raw.substr(0, comment_pos) : line_raw;
+	if (line == line_raw) {
+		comment_pos = line_raw.find(';');
+		line = (comment_pos != std::string::npos) ? line_raw.substr(0, comment_pos) : line_raw;
+	}
+	size_t i = 0;
+	while (i < line.size()) {
+		_column++;
+		char ch = line[i];
 
-        // Skip whitespace
-        if (std::isspace(static_cast<unsigned char>(ch))) {
-            ++i;
-            continue;
-        }
+		// Skip whitespace
+		if (std::isspace(static_cast<unsigned char>(ch))) {
+			++i;
+			continue;
+		}
 
-        // Handle single-char _line_tokens
-        if (ch == ',' || ch == '(' || ch == ')') {
-            TOKEN_TYPE type;
-            if (ch == ',') type = TOKEN_TYPE::COMMA;
-            else if (ch == '(') type = TOKEN_TYPE::LPAREN;
-            else type = TOKEN_TYPE::RPAREN;
+		// Handle single-char _line_tokens
+		if (ch == ',' || ch == '(' || ch == ')') {
+			TOKEN_TYPE type;
+			if (ch == ',') type = TOKEN_TYPE::COMMA;
+			else if (ch == '(') type = TOKEN_TYPE::LPAREN;
+			else type = TOKEN_TYPE::RPAREN;
 
-            _line_tokens.emplace_back(std::string(1, ch), type,_line_number,_column);
-            ++i;
-            continue;
-        }
+			_line_tokens.emplace_back(std::string(1, ch), type, _line_number, _column);
+			++i;
+			continue;
+		}
 
-        // Match [a-zA-Z0-9_.:-]+
-        size_t start = i;
-        while (i < line.size() && (std::isalnum(static_cast<unsigned char>(line[i])) || line[i] == '_' || line[i] == '.' || line[i] == '-' || line[i] == ':')) {
-            ++i;
-        }
+		// Match [a-zA-Z0-9_.:-]+
+		size_t start = i;
+		while (i < line.size() && (std::isalnum(static_cast<unsigned char>(line[i])) || line[i] == '_' || line[i] == '.' || line[i] == '-' || line[i] == ':')) {
+			++i;
+		}
 
-        if (start == i)
-            continue;
+		if (start == i)
+			continue;
 
-        std::string token = line.substr(start, i - start);
+		std::string token = line.substr(start, i - start);
 
-        // Handle label: `label:`
-        if (!token.empty() && token.back() == ':') {
-            _line_tokens.emplace_back(token.substr(0, token.length() - 1), TOKEN_TYPE::LABEL,_line_number,_column);
-            continue;
-        }
+		// Handle label: `label:`
+		if (!token.empty() && token.back() == ':') {
+			_line_tokens.emplace_back(token.substr(0, token.length() - 1), TOKEN_TYPE::LABEL, _line_number, _column);
+			continue;
+		}
 
-        if(lookup_t::load_type(token) != load_instruction_t::LOAD_INSTRUCTION_TYPE::UNKNOWN){
-            _line_tokens.emplace_back(token, TOKEN_TYPE::LOAD_OPERATION,_line_number,_column);
-        } else if(lookup_t::store_type(token) != store_instruction_t::STORE_INSTRUCTION_TYPE::UNKNOWN) {
-            _line_tokens.emplace_back(token, TOKEN_TYPE::STORE_OPERATION,_line_number,_column);
-        } else if(lookup_t::alui_type(token) != alu_instruction_t::ALU_INSTRUCTION_TYPE::UNKNOWN) {
-            _line_tokens.emplace_back(token, TOKEN_TYPE::ALU_OPERATION_I,_line_number,_column);
-        } else if(lookup_t::alur_type(token) != alu_instruction_t::ALU_INSTRUCTION_TYPE::UNKNOWN) {
-            _line_tokens.emplace_back(token, TOKEN_TYPE::ALU_OPERATION_R,_line_number,_column);
-        } else if(lookup_t::branch_type(token) != branch_instruction_t::BRANCH_INSTRUCTION_TYPE::UNKNOWN) {
-            _line_tokens.emplace_back(token, TOKEN_TYPE::BRANCH_OPERATION,_line_number,_column);
-        } else if(lookup_t::jump_type(token) != jump_instruction_t::JUMP_INSTRUCTION_TYPE::UNKNOWN) {
-            _line_tokens.emplace_back(token, TOKEN_TYPE::JUMP_OPERATION,_line_number,_column);
-        } else if(lookup_t::is_pseudo(token)) {
-            _line_tokens.emplace_back(token, TOKEN_TYPE::PSUEDO_OPERATION,_line_number,_column);
-        } else if(token == "lui") {
-            _line_tokens.emplace_back(token, TOKEN_TYPE::LOAD_UPPER,_line_number,_column);
-        } else if(token == "auipc") {
-            _line_tokens.emplace_back(token, TOKEN_TYPE::AUIPC,_line_number,_column);
-        } else if (lookup_t::reg_id(token) != INVALID_REG_ID) {
-            _line_tokens.emplace_back(token, TOKEN_TYPE::REGISTER,_line_number,_column);
-        }else if (lookup_t::is_imm(token)) {
-            _line_tokens.emplace_back(token, TOKEN_TYPE::IMMEDIATE,_line_number,_column);
-        }
-        else {
-            _line_tokens.emplace_back(token, TOKEN_TYPE::IDENTIFIER,_line_number,_column);
-        }
-    }
-    _line_tokens.emplace_back(std::string(), TOKEN_TYPE::NEW_LINE,_line_number,_column);
+		if (lookup_t::load_type(token) != load_instruction_t::LOAD_INSTRUCTION_TYPE::UNKNOWN) {
+			_line_tokens.emplace_back(token, TOKEN_TYPE::LOAD_OPERATION, _line_number, _column);
+		}
+		else if (lookup_t::store_type(token) != store_instruction_t::STORE_INSTRUCTION_TYPE::UNKNOWN) {
+			_line_tokens.emplace_back(token, TOKEN_TYPE::STORE_OPERATION, _line_number, _column);
+		}
+		else if (lookup_t::alui_type(token) != alu_instruction_t::ALU_INSTRUCTION_TYPE::UNKNOWN) {
+			_line_tokens.emplace_back(token, TOKEN_TYPE::ALU_OPERATION_I, _line_number, _column);
+		}
+		else if (lookup_t::alur_type(token) != alu_instruction_t::ALU_INSTRUCTION_TYPE::UNKNOWN) {
+			_line_tokens.emplace_back(token, TOKEN_TYPE::ALU_OPERATION_R, _line_number, _column);
+		}
+		else if (lookup_t::branch_type(token) != branch_instruction_t::BRANCH_INSTRUCTION_TYPE::UNKNOWN) {
+			_line_tokens.emplace_back(token, TOKEN_TYPE::BRANCH_OPERATION, _line_number, _column);
+		}
+		else if (lookup_t::jump_type(token) != jump_instruction_t::JUMP_INSTRUCTION_TYPE::UNKNOWN) {
+			_line_tokens.emplace_back(token, TOKEN_TYPE::JUMP_OPERATION, _line_number, _column);
+		}
+		else if (lookup_t::is_pseudo(token)) {
+			_line_tokens.emplace_back(token, TOKEN_TYPE::PSUEDO_OPERATION, _line_number, _column);
+		}
+		else if (token == "lui") {
+			_line_tokens.emplace_back(token, TOKEN_TYPE::LOAD_UPPER, _line_number, _column);
+		}
+		else if (token == "auipc") {
+			_line_tokens.emplace_back(token, TOKEN_TYPE::AUIPC, _line_number, _column);
+		}
+		else if (lookup_t::reg_id(token) != INVALID_REG_ID) {
+			_line_tokens.emplace_back(token, TOKEN_TYPE::REGISTER, _line_number, _column);
+		}
+		else if (lookup_t::is_imm(token)) {
+			_line_tokens.emplace_back(token, TOKEN_TYPE::IMMEDIATE, _line_number, _column);
+		}
+		else {
+			_line_tokens.emplace_back(token, TOKEN_TYPE::IDENTIFIER, _line_number, _column);
+		}
+	}
+	_line_tokens.emplace_back(std::string(), TOKEN_TYPE::NEW_LINE, _line_number, _column);
 
-    if (_line_tokens[0].word == "jal" && _line_tokens.size() == 3) {
-        _line_tokens[0].type = TOKEN_TYPE::PSUEDO_OPERATION;
-    }
+	if (_line_tokens[0].word == "jal" && _line_tokens.size() == 3) {
+		_line_tokens[0].type = TOKEN_TYPE::PSUEDO_OPERATION;
+	}
 }
 
 // @call : current token is pseudo instruction
 // very long function im too lazy to refactor
 void parser_t::parse_pseudo_instruction() {
-    if(_current_token->word == "nop") {
-        advance();
-        EXPECT(TOKEN_TYPE::NEW_LINE);
-        _program.emplace_back(
-            std::make_unique<alu_instruction_t>(
-                alu_instruction_t::ALU_INSTRUCTION_TYPE::ADD,
-                0,
-                0,
-                0,
-                true
-            )
-        );
-        return;
-    }
-    // ret -> jalr  x0,  ra,  0
-    if(_current_token->word == "ret") {
-        advance();
-        EXPECT(TOKEN_TYPE::NEW_LINE);
-        _program.emplace_back(
-            std::make_unique<jump_instruction_t>(
-                jump_instruction_t::JUMP_INSTRUCTION_TYPE::JALR,
-                0,
-                lookup_t::reg_id("ra"),
-                NO_LABEL,
-                0
-            )
-        );
-        return;
-    }
-    if(_current_token->word == "call") {
-        advance();
-        EXPECT(TOKEN_TYPE::IDENTIFIER);
+	if (_current_token->word == "nop") {
+		advance();
+		EXPECT(TOKEN_TYPE::NEW_LINE);
+		_program.emplace_back(
+			std::make_unique<alu_instruction_t>(
+				alu_instruction_t::ALU_INSTRUCTION_TYPE::ADD,
+				0,
+				0,
+				0,
+				true
+			)
+		);
+		return;
+	}
+	// ret -> jalr  x0,  ra,  0
+	if (_current_token->word == "ret") {
+		advance();
+		EXPECT(TOKEN_TYPE::NEW_LINE);
+		_program.emplace_back(
+			std::make_unique<jump_instruction_t>(
+				jump_instruction_t::JUMP_INSTRUCTION_TYPE::JALR,
+				0,
+				lookup_t::reg_id("ra"),
+				NO_LABEL,
+				0
+			)
+		);
+		return;
+	}
+	if (_current_token->word == "call") {
+		advance();
+		EXPECT(TOKEN_TYPE::IDENTIFIER);
 
-        label_id_t target_label_id = FORWARD_LABEL;
-        if(_label_map.find(_current_token->word) != _label_map.end())
-            target_label_id = _label_map[_current_token->word];
+		label_id_t target_label_id = FORWARD_LABEL;
+		if (_label_map.find(_current_token->word) != _label_map.end())
+			target_label_id = _label_map[_current_token->word];
 
-        std::unique_ptr<jump_instruction_t> jump_instruction = std::make_unique<jump_instruction_t>(
-            jump_instruction_t::JUMP_INSTRUCTION_TYPE::JAL,
-            lookup_t::reg_id("ra"),
-            0,
-            target_label_id,
-            0 // noimm
-        );
-        auto jump_instruction_ptr = jump_instruction.get();
-        if(target_label_id == FORWARD_LABEL)
-            _unresolved_jump_instructions.emplace_back(jump_instruction_ptr, _current_token->word);
+		std::unique_ptr<jump_instruction_t> jump_instruction = std::make_unique<jump_instruction_t>(
+			jump_instruction_t::JUMP_INSTRUCTION_TYPE::JAL,
+			lookup_t::reg_id("ra"),
+			0,
+			target_label_id,
+			0 // noimm
+		);
+		auto jump_instruction_ptr = jump_instruction.get();
+		if (target_label_id == FORWARD_LABEL)
+			_unresolved_jump_instructions.emplace_back(jump_instruction_ptr, _current_token->word);
 
-        _program.push_back(std::move(jump_instruction));
-        return;
-    }
-    // li rd, imm
-    if(_current_token->word == "li") {
-        advance();
-        EXPECT(TOKEN_TYPE::REGISTER);
+		_program.push_back(std::move(jump_instruction));
+		return;
+	}
+	// li rd, imm
+	if (_current_token->word == "li") {
+		advance();
+		EXPECT(TOKEN_TYPE::REGISTER);
 
-        reg_id_t dest_reg = lookup_t::reg_id(_current_token->word);
+		reg_id_t dest_reg = lookup_t::reg_id(_current_token->word);
 
-        advance();
-        EXPECT(TOKEN_TYPE::COMMA);
+		advance();
+		EXPECT(TOKEN_TYPE::COMMA);
 
-        advance();
-        EXPECT(TOKEN_TYPE::IMMEDIATE);
+		advance();
+		EXPECT(TOKEN_TYPE::IMMEDIATE);
 
-        int64_t imm_val = std::stoll(_current_token->word);
+		int64_t imm_val = std::stoll(_current_token->word);
 
-        int32_t low = static_cast<int32_t>(imm_val << 52 >> 52); 
-        int32_t high = static_cast<int32_t>(imm_val - low);     
+		int32_t low = static_cast<int32_t>(imm_val << 52 >> 52);
+		int32_t high = static_cast<int32_t>(imm_val - low);
 
-        if(-2048<= imm_val && (imm_val) <= 2047){
-            _program.emplace_back(
-                std::make_unique<alu_instruction_t>(
-                    alu_instruction_t::ALU_INSTRUCTION_TYPE::ADD,
-                    dest_reg,
-                    0,
-                    static_cast<int64_t>(low),
-                    true
-                )
-            );
-        }
-        else {
-            _program.emplace_back(
-                std::make_unique<load_upper_imm_instruction_t>(
-                    dest_reg,
-                    high
-                )
-            );
-            _program.emplace_back(
-                std::make_unique<alu_instruction_t>(
-                    alu_instruction_t::ALU_INSTRUCTION_TYPE::ADD,
-                    dest_reg,
-                    dest_reg,
-                    low,
-                    true
-                )
-            );
-        }
-        return;
-    }
+		if (-2048 <= imm_val && (imm_val) <= 2047) {
+			_program.emplace_back(
+				std::make_unique<alu_instruction_t>(
+					alu_instruction_t::ALU_INSTRUCTION_TYPE::ADD,
+					dest_reg,
+					0,
+					static_cast<int64_t>(low),
+					true
+				)
+			);
+		}
+		else {
+			_program.emplace_back(
+				std::make_unique<load_upper_imm_instruction_t>(
+					dest_reg,
+					high
+				)
+			);
+			_program.emplace_back(
+				std::make_unique<alu_instruction_t>(
+					alu_instruction_t::ALU_INSTRUCTION_TYPE::ADD,
+					dest_reg,
+					dest_reg,
+					low,
+					true
+				)
+			);
+		}
+		return;
+	}
 
-    // these pseudo instructions have the same syntax
-    if
-    (  _current_token->word == "mv"   ||
-       _current_token->word == "not"  ||
-       _current_token->word == "neg"  || 
-       _current_token->word == "seqz" || 
-       _current_token->word == "snez" || 
-       _current_token->word == "sltz" || 
-       _current_token->word == "sgtz"
-    ) {
-        std::string op = _current_token->word;
-        advance();
-        EXPECT(TOKEN_TYPE::REGISTER);
+	// these pseudo instructions have the same syntax
+	if
+		(_current_token->word == "mv" ||
+			_current_token->word == "not" ||
+			_current_token->word == "neg" ||
+			_current_token->word == "seqz" ||
+			_current_token->word == "snez" ||
+			_current_token->word == "sltz" ||
+			_current_token->word == "sgtz"
+			) {
+		std::string op = _current_token->word;
+		advance();
+		EXPECT(TOKEN_TYPE::REGISTER);
 
-        reg_id_t dest_reg = lookup_t::reg_id(_current_token->word);
+		reg_id_t dest_reg = lookup_t::reg_id(_current_token->word);
 
-        advance();
-        EXPECT(TOKEN_TYPE::COMMA);
+		advance();
+		EXPECT(TOKEN_TYPE::COMMA);
 
-        advance();
+		advance();
 
-        EXPECT(TOKEN_TYPE::REGISTER);
+		EXPECT(TOKEN_TYPE::REGISTER);
 
-        reg_id_t src_reg = lookup_t::reg_id(_current_token->word);
+		reg_id_t src_reg = lookup_t::reg_id(_current_token->word);
 
-        //  mv   rd,  rs1 -> addi  rd,  rs1, 0
-        if(op[0] == 'm') {
-            _program.emplace_back(
-                std::make_unique<alu_instruction_t>(
-                    alu_instruction_t::ALU_INSTRUCTION_TYPE::ADD,
-                    dest_reg,
-                    src_reg,
-                    0,
-                    true
-                )
-            );
-            return;
-        }
-        // not  rd,  rs1 -> xori  rd,  rs1, —1
-        if(op[0] == 'n' && op[1] == 'o') {
-            _program.emplace_back(
-                std::make_unique<alu_instruction_t>(
-                    alu_instruction_t::ALU_INSTRUCTION_TYPE::XOR,
-                    dest_reg,
-                    src_reg,
-                    -1,
-                    true
-                )
-            );
-            return;
-        }
-        // neg  rd,  rs1 ->  sub   rd,  x0,  rs1
-        if(op[0] == 'n' &&  op[1] == 'e') {
-            _program.emplace_back(
-                std::make_unique<alu_instruction_t>(
-                    alu_instruction_t::ALU_INSTRUCTION_TYPE::SUB,
-                    dest_reg,
-                    0,
-                    src_reg,
-                    false
-                )
-            );
-            return;
-        }
+		//  mv   rd,  rs1 -> addi  rd,  rs1, 0
+		if (op[0] == 'm') {
+			_program.emplace_back(
+				std::make_unique<alu_instruction_t>(
+					alu_instruction_t::ALU_INSTRUCTION_TYPE::ADD,
+					dest_reg,
+					src_reg,
+					0,
+					true
+				)
+			);
+			return;
+		}
+		// not  rd,  rs1 -> xori  rd,  rs1, —1
+		if (op[0] == 'n' && op[1] == 'o') {
+			_program.emplace_back(
+				std::make_unique<alu_instruction_t>(
+					alu_instruction_t::ALU_INSTRUCTION_TYPE::XOR,
+					dest_reg,
+					src_reg,
+					-1,
+					true
+				)
+			);
+			return;
+		}
+		// neg  rd,  rs1 ->  sub   rd,  x0,  rs1
+		if (op[0] == 'n' && op[1] == 'e') {
+			_program.emplace_back(
+				std::make_unique<alu_instruction_t>(
+					alu_instruction_t::ALU_INSTRUCTION_TYPE::SUB,
+					dest_reg,
+					0,
+					src_reg,
+					false
+				)
+			);
+			return;
+		}
 
-        // seqz rd,  rs1 -> sltiu rd,  rs1, 1
-        if(op[1] == 'e') {
+		// seqz rd,  rs1 -> sltiu rd,  rs1, 1
+		if (op[1] == 'e') {
 
-            _program.emplace_back(
-                std::make_unique<alu_instruction_t>(
-                    alu_instruction_t::ALU_INSTRUCTION_TYPE::SLTU,
-                    dest_reg,
-                    src_reg,
-                    1,
-                    true
-                )
-            );
-            return;
-        }
-        // snez rd, rs1 ->  sltu  rd,  x0,  rs1
-        if(op[1] == 'n') {
+			_program.emplace_back(
+				std::make_unique<alu_instruction_t>(
+					alu_instruction_t::ALU_INSTRUCTION_TYPE::SLTU,
+					dest_reg,
+					src_reg,
+					1,
+					true
+				)
+			);
+			return;
+		}
+		// snez rd, rs1 ->  sltu  rd,  x0,  rs1
+		if (op[1] == 'n') {
 
-            _program.emplace_back(
-                std::make_unique<alu_instruction_t>(
-                    alu_instruction_t::ALU_INSTRUCTION_TYPE::SLTU,
-                    dest_reg,
-                    0,
-                    src_reg,
-                    false
-                )
-            );
-            return;
-        }
-        // sltz rd,  rs1  -> slt   rd,  rs1, x0
-        if(op[1] == 'l') {
-            _program.emplace_back(
-                std::make_unique<alu_instruction_t>(
-                    alu_instruction_t::ALU_INSTRUCTION_TYPE::SLT,
-                    dest_reg,
-                    src_reg,
-                    0,
-                    false
-                )
-            );
-            return;
+			_program.emplace_back(
+				std::make_unique<alu_instruction_t>(
+					alu_instruction_t::ALU_INSTRUCTION_TYPE::SLTU,
+					dest_reg,
+					0,
+					src_reg,
+					false
+				)
+			);
+			return;
+		}
+		// sltz rd,  rs1  -> slt   rd,  rs1, x0
+		if (op[1] == 'l') {
+			_program.emplace_back(
+				std::make_unique<alu_instruction_t>(
+					alu_instruction_t::ALU_INSTRUCTION_TYPE::SLT,
+					dest_reg,
+					src_reg,
+					0,
+					false
+				)
+			);
+			return;
 
-        }
+		}
 
-        // sgtz rd,  rs1 -> slt   rd,  x0,  rs1
-        _program.emplace_back(
-            std::make_unique<alu_instruction_t>(
-                alu_instruction_t::ALU_INSTRUCTION_TYPE::SLT,
-                dest_reg,
-                0,
-                src_reg,
-                false
-            )
-        );
-        return;
-    }
+		// sgtz rd,  rs1 -> slt   rd,  x0,  rs1
+		_program.emplace_back(
+			std::make_unique<alu_instruction_t>(
+				alu_instruction_t::ALU_INSTRUCTION_TYPE::SLT,
+				dest_reg,
+				0,
+				src_reg,
+				false
+			)
+		);
+		return;
+	}
 
-    if
-    (
-        _current_token->word == "beqz" ||
-        _current_token->word == "bnez" ||
-        _current_token->word == "blez" || 
-        _current_token->word == "bgez" ||
-        _current_token->word == "bltz" || 
-        _current_token->word == "bgtz" 
-    )
-    {
-        std::string op = _current_token->word;
+	if
+		(
+			_current_token->word == "beqz" ||
+			_current_token->word == "bnez" ||
+			_current_token->word == "blez" ||
+			_current_token->word == "bgez" ||
+			_current_token->word == "bltz" ||
+			_current_token->word == "bgtz"
+			)
+	{
+		std::string op = _current_token->word;
 
-        advance();
-        EXPECT(TOKEN_TYPE::REGISTER);
+		advance();
+		EXPECT(TOKEN_TYPE::REGISTER);
 
-        reg_id_t src1 = lookup_t::reg_id(_current_token->word);
+		reg_id_t src1 = lookup_t::reg_id(_current_token->word);
 
-        advance();
-        EXPECT(TOKEN_TYPE::COMMA);
+		advance();
+		EXPECT(TOKEN_TYPE::COMMA);
 
-        advance();
-        EXPECT(TOKEN_TYPE::IDENTIFIER);
+		advance();
+		EXPECT(TOKEN_TYPE::IDENTIFIER);
 
-        label_id_t target_label_id = FORWARD_LABEL;
-        branch_instruction_id_t branch_id = unique_branch_id();
-        std::unique_ptr<branch_instruction_t> branch_instruction;
-        branch_instruction_t *branch_instruction_ptr = nullptr;
+		label_id_t target_label_id = FORWARD_LABEL;
+		branch_instruction_id_t branch_id = unique_branch_id();
+		std::unique_ptr<branch_instruction_t> branch_instruction;
+		branch_instruction_t* branch_instruction_ptr = nullptr;
 
-        if(_label_map.find(_current_token->word) != _label_map.end())
-            target_label_id = _label_map[_current_token->word];
-        
-        // beqz rs1, label  -> beq   rs1, x0,  label
-        if(op[1] == 'e')
-            branch_instruction = std::make_unique<branch_instruction_t>(
-                branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BEQ,
-                src1,
-                0,
-                target_label_id,
-                branch_id
-            );
-        // bnez rs1, label ->  bne   rs1, x0,  label
-        else if(op[1] == 'n')
-            branch_instruction = std::make_unique<branch_instruction_t>(
-                branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BNE,
-                src1,
-                0,
-                target_label_id,
-                branch_id
-            );
-        //   blez rs1, label -> bge   x0,  rs1, label
-        else if(op[1] == 'l' && op[2] == 'e')
-            branch_instruction = std::make_unique<branch_instruction_t>(
-                branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BGE,
-                0,
-                src1,
-                target_label_id,
-                branch_id
-            );
+		if (_label_map.find(_current_token->word) != _label_map.end())
+			target_label_id = _label_map[_current_token->word];
 
-        // bgez rs1, label -> bge   rs1, x0,  label
-        else if (op[1] == 'g' && op[2] == 'e')
-            branch_instruction = std::make_unique<branch_instruction_t>(
-                branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BGE,
-                src1,
-                0,
-                target_label_id,
-                branch_id
-            );
-        // bltz rs1, labe ->  blt   rs1, x0,  label
-        else if(op[1] == 'l' && op[2] == 't')
-            branch_instruction = std::make_unique<branch_instruction_t>(
-                branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BLT,
-                src1,
-                0,
-                target_label_id,
-                branch_id
-            );
-        // bgtz rs1, label ->  blt   x0,  rs1, label
-        else if(op[1] == 'g' && op[2] == 't')
-            branch_instruction = std::make_unique<branch_instruction_t>(
-                branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BLT,
-                0,
-                src1,
-                target_label_id,
-                branch_id
-            );
-        branch_instruction_ptr = branch_instruction.get();
-        if(target_label_id == FORWARD_LABEL)
-            _unresolved_branch_instructions.emplace_back(branch_instruction_ptr,_current_token->word);
-        _program.push_back(std::move(branch_instruction));
-        return;
-    }  // pseudo_branch0
-    if
-    (
-        _current_token->word == "ble" ||
-        _current_token->word == "bgt" ||
-        _current_token->word == "bleu" ||
-        _current_token->word == "bgtu" 
-    )
-    {
+		// beqz rs1, label  -> beq   rs1, x0,  label
+		if (op[1] == 'e')
+			branch_instruction = std::make_unique<branch_instruction_t>(
+				branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BEQ,
+				src1,
+				0,
+				target_label_id,
+				branch_id
+			);
+		// bnez rs1, label ->  bne   rs1, x0,  label
+		else if (op[1] == 'n')
+			branch_instruction = std::make_unique<branch_instruction_t>(
+				branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BNE,
+				src1,
+				0,
+				target_label_id,
+				branch_id
+			);
+		//   blez rs1, label -> bge   x0,  rs1, label
+		else if (op[1] == 'l' && op[2] == 'e')
+			branch_instruction = std::make_unique<branch_instruction_t>(
+				branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BGE,
+				0,
+				src1,
+				target_label_id,
+				branch_id
+			);
 
-        std::string op = _current_token->word;
+		// bgez rs1, label -> bge   rs1, x0,  label
+		else if (op[1] == 'g' && op[2] == 'e')
+			branch_instruction = std::make_unique<branch_instruction_t>(
+				branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BGE,
+				src1,
+				0,
+				target_label_id,
+				branch_id
+			);
+		// bltz rs1, labe ->  blt   rs1, x0,  label
+		else if (op[1] == 'l' && op[2] == 't')
+			branch_instruction = std::make_unique<branch_instruction_t>(
+				branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BLT,
+				src1,
+				0,
+				target_label_id,
+				branch_id
+			);
+		// bgtz rs1, label ->  blt   x0,  rs1, label
+		else if (op[1] == 'g' && op[2] == 't')
+			branch_instruction = std::make_unique<branch_instruction_t>(
+				branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BLT,
+				0,
+				src1,
+				target_label_id,
+				branch_id
+			);
+		branch_instruction_ptr = branch_instruction.get();
+		if (target_label_id == FORWARD_LABEL)
+			_unresolved_branch_instructions.emplace_back(branch_instruction_ptr, _current_token->word);
+		_program.push_back(std::move(branch_instruction));
+		return;
+	}  // pseudo_branch0
+	if
+		(
+			_current_token->word == "ble" ||
+			_current_token->word == "bgt" ||
+			_current_token->word == "bleu" ||
+			_current_token->word == "bgtu"
+			)
+	{
 
-        advance();
-        EXPECT(TOKEN_TYPE::REGISTER);
-        reg_id_t src1 = lookup_t::reg_id(_current_token->word);
+		std::string op = _current_token->word;
 
-        advance();
-        EXPECT(TOKEN_TYPE::COMMA);
+		advance();
+		EXPECT(TOKEN_TYPE::REGISTER);
+		reg_id_t src1 = lookup_t::reg_id(_current_token->word);
 
-        advance();
-        EXPECT(TOKEN_TYPE::REGISTER);
-        reg_id_t src2 = lookup_t::reg_id(_current_token->word);
+		advance();
+		EXPECT(TOKEN_TYPE::COMMA);
 
-        advance();
-        EXPECT(TOKEN_TYPE::COMMA);
+		advance();
+		EXPECT(TOKEN_TYPE::REGISTER);
+		reg_id_t src2 = lookup_t::reg_id(_current_token->word);
 
-        advance();
-        EXPECT(TOKEN_TYPE::IDENTIFIER);
+		advance();
+		EXPECT(TOKEN_TYPE::COMMA);
 
-        label_id_t target_label_id = FORWARD_LABEL;
-        branch_instruction_id_t branch_id = unique_branch_id();
-        std::unique_ptr<branch_instruction_t> branch_instruction;
+		advance();
+		EXPECT(TOKEN_TYPE::IDENTIFIER);
 
-        if(_label_map.find(_current_token->word) != _label_map.end())
-            target_label_id = _label_map[_current_token->word];
+		label_id_t target_label_id = FORWARD_LABEL;
+		branch_instruction_id_t branch_id = unique_branch_id();
+		std::unique_ptr<branch_instruction_t> branch_instruction;
 
-        // ble rs1, rs2, label  ->  bge rs2, rs1, label (if rs2 >= rs1, then rs1 <= rs2)
-        if(op == "ble")
-            branch_instruction = std::make_unique<branch_instruction_t>(
-                branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BGE,
-                src2, src1, target_label_id, branch_id
-            );
+		if (_label_map.find(_current_token->word) != _label_map.end())
+			target_label_id = _label_map[_current_token->word];
 
-        // bgt rs1, rs2, label  ->  blt rs2, rs1, label (if rs2 < rs1, then rs1 > rs2)
-        else if(op == "bgt")
-            branch_instruction = std::make_unique<branch_instruction_t>(
-                branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BLT,
-                src2, src1, target_label_id, branch_id
-            );
+		// ble rs1, rs2, label  ->  bge rs2, rs1, label (if rs2 >= rs1, then rs1 <= rs2)
+		if (op == "ble")
+			branch_instruction = std::make_unique<branch_instruction_t>(
+				branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BGE,
+				src2, src1, target_label_id, branch_id
+			);
 
-        // bleu rs1, rs2, label ->  bgeu rs2, rs1, label
-        else if(op == "bleu")
-            branch_instruction = std::make_unique<branch_instruction_t>(
-                branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BGEU,
-                src2, src1, target_label_id, branch_id
-            );
+		// bgt rs1, rs2, label  ->  blt rs2, rs1, label (if rs2 < rs1, then rs1 > rs2)
+		else if (op == "bgt")
+			branch_instruction = std::make_unique<branch_instruction_t>(
+				branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BLT,
+				src2, src1, target_label_id, branch_id
+			);
 
-        // bgtu rs1, rs2, label ->  bltu rs2, rs1, label
-        else if(op == "bgtu")
-            branch_instruction = std::make_unique<branch_instruction_t>(
-                branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BLTU,
-                src2, src1, target_label_id, branch_id
-            );
+		// bleu rs1, rs2, label ->  bgeu rs2, rs1, label
+		else if (op == "bleu")
+			branch_instruction = std::make_unique<branch_instruction_t>(
+				branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BGEU,
+				src2, src1, target_label_id, branch_id
+			);
 
-        branch_instruction_t* branch_instruction_ptr = branch_instruction.get();
-        if(target_label_id == FORWARD_LABEL)
-            _unresolved_branch_instructions.emplace_back(branch_instruction_ptr, _current_token->word);
-        
-        _program.push_back(std::move(branch_instruction));
-        return;
-    }
+		// bgtu rs1, rs2, label ->  bltu rs2, rs1, label
+		else if (op == "bgtu")
+			branch_instruction = std::make_unique<branch_instruction_t>(
+				branch_instruction_t::BRANCH_INSTRUCTION_TYPE::BLTU,
+				src2, src1, target_label_id, branch_id
+			);
 
-    if (_current_token->word == "j" || _current_token->word == "jal") {
-        std::string op = _current_token->word;
-        advance();
-        EXPECT(TOKEN_TYPE::IDENTIFIER);
+		branch_instruction_t* branch_instruction_ptr = branch_instruction.get();
+		if (target_label_id == FORWARD_LABEL)
+			_unresolved_branch_instructions.emplace_back(branch_instruction_ptr, _current_token->word);
 
-        label_id_t target_label_id = FORWARD_LABEL;
-        if(_label_map.find(_current_token->word) != _label_map.end())
-            target_label_id = _label_map[_current_token->word];
+		_program.push_back(std::move(branch_instruction));
+		return;
+	}
 
-        std::unique_ptr<jump_instruction_t> jump_instruction;
-        // j label -> jal   x0,  label
-        if(op.size() == 1) {
-            jump_instruction = std::make_unique<jump_instruction_t>(
-                jump_instruction_t::JUMP_INSTRUCTION_TYPE::JAL,
-                0,
-                0,
-                target_label_id,
-                0
-            );
-        // jal  label -> jal   ra,  label
-        } else {
-            jump_instruction = std::make_unique<jump_instruction_t>(
-                jump_instruction_t::JUMP_INSTRUCTION_TYPE::JAL,
-                lookup_t::reg_id("ra"),
-                0,
-                target_label_id,
-                0
-            );
-        }
-        if(target_label_id == FORWARD_LABEL) {
-            _unresolved_jump_instructions.emplace_back(jump_instruction.get(), _current_token->word);
-        }
-        _program.emplace_back(std::move(jump_instruction));
-        return;
-    }
-    if (_current_token->word == "jr" || _current_token->word == "jalr") {
-        std::string op = _current_token->word;
+	if (_current_token->word == "j" || _current_token->word == "jal") {
+		std::string op = _current_token->word;
+		advance();
+		EXPECT(TOKEN_TYPE::IDENTIFIER);
 
-        advance();
+		label_id_t target_label_id = FORWARD_LABEL;
+		if (_label_map.find(_current_token->word) != _label_map.end())
+			target_label_id = _label_map[_current_token->word];
 
-        EXPECT(TOKEN_TYPE::REGISTER);
-        reg_id_t src1 = lookup_t::reg_id(_current_token->word);
+		std::unique_ptr<jump_instruction_t> jump_instruction;
+		// j label -> jal   x0,  label
+		if (op.size() == 1) {
+			jump_instruction = std::make_unique<jump_instruction_t>(
+				jump_instruction_t::JUMP_INSTRUCTION_TYPE::JAL,
+				0,
+				0,
+				target_label_id,
+				0
+			);
+			// jal  label -> jal   ra,  label
+		}
+		else {
+			jump_instruction = std::make_unique<jump_instruction_t>(
+				jump_instruction_t::JUMP_INSTRUCTION_TYPE::JAL,
+				lookup_t::reg_id("ra"),
+				0,
+				target_label_id,
+				0
+			);
+		}
+		if (target_label_id == FORWARD_LABEL) {
+			_unresolved_jump_instructions.emplace_back(jump_instruction.get(), _current_token->word);
+		}
+		_program.emplace_back(std::move(jump_instruction));
+		return;
+	}
+	if (_current_token->word == "jr" || _current_token->word == "jalr") {
+		std::string op = _current_token->word;
 
-        advance();
-        EXPECT(TOKEN_TYPE::NEW_LINE);
+		advance();
 
-        std::unique_ptr<jump_instruction_t> jump_instruction;
-        
-        // jr rs1 -> jalr  x0,  rs1, 0
-        if(op.size() == 2) {
-            jump_instruction = std::make_unique<jump_instruction_t>(
-                jump_instruction_t::JUMP_INSTRUCTION_TYPE::JALR,
-                0,
-                src1,
-                0,
-                0
-            );
-        }
-        // jalr rs1 ->  jalr  ra,  rs1, 0
-        else {
-            jump_instruction = std::make_unique<jump_instruction_t>(
-                jump_instruction_t::JUMP_INSTRUCTION_TYPE::JALR,
-                lookup_t::reg_id("ra"),
-                src1,
-                0,
-                0
-            );
-        }
-        _program.emplace_back(std::move(jump_instruction));
-        return;
-    }
+		EXPECT(TOKEN_TYPE::REGISTER);
+		reg_id_t src1 = lookup_t::reg_id(_current_token->word);
+
+		advance();
+		EXPECT(TOKEN_TYPE::NEW_LINE);
+
+		std::unique_ptr<jump_instruction_t> jump_instruction;
+
+		// jr rs1 -> jalr  x0,  rs1, 0
+		if (op.size() == 2) {
+			jump_instruction = std::make_unique<jump_instruction_t>(
+				jump_instruction_t::JUMP_INSTRUCTION_TYPE::JALR,
+				0,
+				src1,
+				0,
+				0
+			);
+		}
+		// jalr rs1 ->  jalr  ra,  rs1, 0
+		else {
+			jump_instruction = std::make_unique<jump_instruction_t>(
+				jump_instruction_t::JUMP_INSTRUCTION_TYPE::JALR,
+				lookup_t::reg_id("ra"),
+				src1,
+				0,
+				0
+			);
+		}
+		_program.emplace_back(std::move(jump_instruction));
+		return;
+	}
 }
