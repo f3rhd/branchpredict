@@ -1,4 +1,3 @@
-.vscode/
 
 transcript
 *.exe
@@ -94,3 +93,8 @@ $tf/
 *.cache
 *.dbmdl
 *.jfm
+vendor/SFML/lib/**/*
+vendor/SFML/bin/**/*
+
+!vendor/SFML/lib/
+!vendor/SFML/bin/
