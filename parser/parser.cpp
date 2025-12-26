@@ -11,10 +11,10 @@
         exit(EXIT_FAILURE);                                       \
     }                                                             \
 
-program_t&& parser_t::parse_program(const std::string& src) {
+cpu_program_t&& parser_t::parse_program(const std::string& src) {
 	std::ifstream file(src);
 	if (!file.is_open()) {
-		std::cout << "\033[31m" << "Error: \033" << "File path " << src << " doesn't exist.\n";
+		std::cout << "\033[31m" << "Error: \033[0m" << "File path " << src << " doesn't exist.\n";
 		exit(EXIT_FAILURE);
 	}
 	std::string line_raw;
@@ -45,6 +45,50 @@ program_t&& parser_t::parse_program(const std::string& src) {
 	file.close();
 	return std::move(_program);
 }
+
+cli_args_t parser_t::parse_cli(int argc, char** argv) {
+	std::string input_file;
+	std::string log_destination = "none"; 
+	CPU::PREDICTOR_TYPE predictor_type = CPU::PREDICTOR_TYPE::GSHARE; 
+	bool valid = true;
+	for (int i = 1; i < argc; ++i) {
+			std::string arg = argv[i];
+
+			if (arg == "--log") {
+				if (i + 1 < argc) {
+					log_destination = argv[i + 1];
+					i++; 
+				} else {
+					std::cerr << "Error: --log requires a destination (cout or a filename).\n";
+					valid = false;
+				}
+			} else if (arg == "--gshare") {
+				predictor_type = CPU::PREDICTOR_TYPE::GSHARE;
+			} else if (arg == "--GAg") {
+				predictor_type = CPU::PREDICTOR_TYPE::GAg;
+			} else if (arg == "--PAg") {
+				predictor_type = CPU::PREDICTOR_TYPE::PAg;
+			} else if (arg == "--simple") {
+				predictor_type = CPU::PREDICTOR_TYPE::SIMPLE;
+			} else if (arg.rfind("--", 0) == 0) { // Checks if the argument starts with '--'
+				std::cerr << "Warning: Unknown option: " << arg << ". Ignoring.\n";
+			} else {
+				if (input_file.empty()) {
+					input_file = arg;
+				} else {
+					std::cerr << "Warning: Multiple input files found. Using first one: " << input_file << ".\n";
+				}
+			}
+		}
+
+
+	if (input_file.empty()) {
+		std::cerr << "Usage: " << argv[0] << " <input.s> [--log cout | --log <filename>] [--gshare | --GAg | --PAg | --simple]\n";
+		valid = false;
+	}
+	return { std::move(input_file), predictor_type, std::move(log_destination), valid };
+}
+
 
 void parser_t::parse_instruction() {
 	switch (_current_token->type) {

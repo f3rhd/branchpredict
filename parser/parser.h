@@ -5,10 +5,18 @@
 
 #include "token.h"
 #include "lookup.h"
+#include "../cpu/cpu.h"
+struct cli_args_t {
+    std::string input_file;
+    CPU::PREDICTOR_TYPE predictor;
+    std::string log_dest;
+    bool valid;
+};
 class parser_t {
 public:
     parser_t() = default;
-    program_t&&  parse_program(const std::string& src);
+    cpu_program_t&&  parse_program(const std::string& src);
+    cli_args_t  parse_cli(int argc, char** argv);
 private:
     void        parse_instruction();
     void        parse_pseudo_instruction();
@@ -29,7 +37,7 @@ private:
     std::vector<std::pair<branch_instruction_t*,std::string>>            _unresolved_branch_instructions;// the instructions whose labels are yet to be found
     std::vector<std::pair<jump_instruction_t*,std::string>>              _unresolved_jump_instructions;// the instructions whose labels are yet to be found
     std::vector<token_t>                                                 _line_tokens;
-    program_t                                                            _program;
+    cpu_program_t                                                            _program;
     size_t                                                               _line_number = 0;
     size_t                                                               _column = 0;
 };
