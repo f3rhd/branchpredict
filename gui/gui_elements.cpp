@@ -22,9 +22,17 @@ namespace gui {
 			if (ImGui::Button("Reset"))
 				action = CPU_EXECUTION::RESET;
 			ImGui::SameLine();
-			if (ImGui::Button("Follow PC"))
-				follow_pc = !follow_pc;
+			if (follow_pc) {
+				if (ImGui::Button("Unfollow PC")) {
+					follow_pc = !follow_pc;
+				}
+			}
+			else {
+				if (ImGui::Button("Follow PC")) {
+					follow_pc = !follow_pc;
+				}
 
+			}
 			ImGui::Separator();
 		}
 
