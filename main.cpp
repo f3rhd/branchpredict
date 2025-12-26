@@ -4,7 +4,12 @@
 #include "gui/gui_renderer.h"
 #include "gui/gui_elements.h"
 
+#include <fstream>
+#include <iostream>
 #include <chrono>
+
+template<typename T>
+void run_gui(CPU& cpu, const T& parse_result);
 int main(int argc, char** argv) {
 
     parser_t parser;
@@ -18,11 +23,29 @@ int main(int argc, char** argv) {
 
     cpu.load_program(std::move(parse_result.first));
 
+    if (cli_info.enable_gui) {
+
+        run_gui(cpu,parse_result);
+    }
+    else {
+        while (!cpu.endofprogram()) cpu.execute();
+    }
+    if (cli_info.log_dest == "cout")
+        cpu.log(std::cout);
+    else {
+        std::ofstream os(cli_info.log_dest);
+        cpu.log(os);
+    }
+}
+
+template<typename T>
+void run_gui(CPU& cpu,const T& parse_result) {
+
     gui::renderer::init("BranchPredict", 800, 600);
     GLFWwindow* window = gui::renderer::get_window();
 
     if (!window)
-        return 1;
+        return ;
 
 	float cpu_speed = 0;
     CPU_EXECUTION action = CPU_EXECUTION::STOP;
