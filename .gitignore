@@ -95,6 +95,10 @@ $tf/
 *.jfm
 vendor/SFML/lib/**/*
 vendor/SFML/bin/**/*
+vendor/glfw/lib/**/*
 
 !vendor/SFML/lib/
 !vendor/SFML/bin/
+!vendor/glfw/lib/
+
+*.ini
