@@ -39,11 +39,11 @@ void CPU::update_pc(memory_addr_t next_pc_val) {
 	_pc = next_pc_val;
 }
 
-void CPU::load_program(program_t&& program_) {
+void CPU::load_program(cpu_program_t&& program_) {
 	_program = std::move(program_);
 }
 
-void CPU::log(std::ostream& os) {
+void CPU::log(std::ostream& os)  {
 	const size_t COLS = 4;
 
 	const int VAL_WIDTH = 12;
@@ -91,22 +91,37 @@ void CPU::incr_total_branches() {
 void CPU::penalty() {
 	_cycles += BRANCH_MISPREDICTION_PENALTY;
 }
-memory_addr_t CPU::get_pc() const {
+const memory_addr_t& CPU::get_pc() const {
 	return _pc;
 }
 
-data_t CPU::d_cache_read(memory_addr_t addr) {
+const uint64_t& CPU::get_cycles() const {
+	return _cycles;
+}
+
+const uint64_t& CPU::get_total_branches() const {
+	return _total_branches;
+}
+
+const uint64_t& CPU::get_correct_predictions() const {
+	return _correct_predictions;
+}
+
+const cpu_dcache_t& CPU::get_dcache() const {
+	return _d_cache;
+}
+
+const data_t& CPU::d_cache_read(memory_addr_t addr) {
 	if (_d_cache.find(addr) == _d_cache.end()) {
 		_cycles += CACHE_MISS_PENALTY;
-		return { 0l };
+		return _reg_file[0];
 	}
 	return _d_cache[addr];
 }
 
-data_t CPU::reg_file_read(const reg_id_t& reg_id) {
-	if (reg_id == 0) return { 0 };
-	if (_reg_file.find(reg_id) == _reg_file.end())
-		return { 0l };
+const data_t& CPU::reg_file_read(const reg_id_t& reg_id)  {
+	if (_reg_file.find(reg_id) == _reg_file.end() || reg_id == 0)
+		return _reg_file[0];
 	return _reg_file[reg_id];
 }
 
@@ -131,8 +146,8 @@ CPU::CPU(CPU::PREDICTOR_TYPE type) {
 	for (reg_id_t i = 0; i < 32; i++) {
 		_reg_file[i]._unsigned = 0ull;
 	}
-	_program = program_t();
-	_d_cache = d_cache_t();
+	_program = cpu_program_t();
+	_d_cache = cpu_dcache_t();
 }
 
 void CPU::execute() {
@@ -154,7 +169,7 @@ void CPU::update_bht(branch_instruction_id_t branch_label, bool branch_direction
 	_branch_predictor->update(branch_label, branch_direction);
 }
 
-bool CPU::predict_branch(branch_instruction_id_t branch_label) {
+bool CPU::predict_branch(branch_instruction_id_t branch_label) const {
 	return _branch_predictor->predict(branch_label);
 }
 
@@ -162,7 +177,15 @@ void CPU::reset() {
 	_pc = 0;
 	_d_cache.clear();
 	_reg_file.clear();
+	_total_branches = 0;
+	_cycles = 0;
+	_correct_predictions = 0;
+	_halt = false;
 }
-bool CPU::halt() const {
+bool CPU::endofprogram() const {
 	return _halt;
+}
+
+const cpu_reg_file_t& CPU::get_reg_file() const {
+	return _reg_file;
 }

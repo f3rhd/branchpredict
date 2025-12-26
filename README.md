@@ -1,102 +1,176 @@
+# CPUInsight: CPU Emulator & Visual Execution Explorer
 
-## BranchPredict: CPU Emulator & Dynamic Branch Prediction Analysis
+## 1. Overview
 
-### 1\. Overview
+**CPUInsight** started as a dedicated CPU emulator, originally called **BranchPredict**, for analyzing dynamic branch prediction algorithms (Gshare, GAg, PAg, Simple). Now, it has evolved into a **CPU visualization tool**, allowing you to:
 
-**BranchPredict** is a dedicated software CPU emulator designed for the quantitative analysis and comparison of dynamic branch prediction algorithms. The tool executes RV32IM programs and generates detailed metrics to evaluate prediction performance across different methodologies.
+* Execute **RV32IM assembly programs** step by step.
+* Inspect **register files**, **D-cache**, and **execution flow** visually.
+* Compare branch prediction algorithms in real-time.
 
-The primary objective is to provide a clear, evidence-based comparison between established prediction techniques, including Gshare, GAg, PAg, and a simple baseline predictor.
+This tool is ideal for students, hardware enthusiasts, and anyone who wants to **see what’s happening inside a CPU**.
 
------
+---
 
-### 2\. Getting Started
+## 2. Features
 
-#### Prerequisites
+* **Dynamic Branch Prediction Analysis**
 
-  * A C++ compiler supporting the **C++14 standard** or later (e.g., GCC).
+  * Simple 2-bit predictor
+  * Gshare
+  * GAg (Global History, Global PHT)
+  * PAg (Per-Address History, Global PHT)
 
-#### Building the Project
+* **GUI Execution Visualization**
 
-1.  Clone the repository using the provided URL:
-    ```bash
-    git clone https://github.com/f3rhd/branchpredict
-    cd branchpredict
-    ```
-2.  Compile the source files using the C++14 standard:
-    ```bash
-    g++ -std=c++14 main.cpp cpu/*.cpp parser/*.cpp -w -o cpu
-    ```
+  * Step through instructions
+  * Watch register and memory changes live
+  * Highlight current instruction in assembly view
+  * Adjust execution speed dynamically
 
------
+* **Metrics & Logging**
 
-### 3\. Usage
+  * Prediction accuracy, mispredictions, total executed branches
+  * Cycle cost estimation
+  * Optional logging to console or files
 
-The compiled program (`./cpu`) is executed via the command line, requiring an input assembly file and configuration flags for logging and the chosen branch prediction algorithm.
+* **Cross-platform**
 
-#### Syntax
+  * Works on Linux, Windows, and macOS
+  * Built with **C++20**, **ImGui**, and **GLFW** for the GUI
+
+---
+
+## 3. Dependencies
+
+The project requires a few libraries to build and run.
+
+**Linux (Debian/Ubuntu example):**
 
 ```bash
-./cpu <input.s> [OPTIONS]
+sudo apt update
+sudo apt install build-essential cmake libglfw3-dev libgl1-mesa-dev
 ```
 
-#### Command Line Options
+**Windows (recommended via vcpkg):**
 
-| Option | Category | Description |
-| :--- | :--- | :--- |
-| **`<input.s>`** | **Required Input** | Path to the RV32IM assembly source file for simulation. |
-| `--log cout` | Logging Target | Outputs simulation metrics and statistics directly to the terminal (`std::cout`). |
-| `--log <filename>` | Logging Target | Outputs metrics to the specified file for later analysis (e.g., `results.csv`). |
-| `--gshare` | Predictor Selection | Uses the **Gshare** predictor. **(Default)** |
-| `--GAg` | Predictor Selection | Uses the **GAg** (Global History, Global PHT) predictor. |
-| `--PAg` | Predictor Selection | Uses the **PAg** (Per-Address History, Global PHT) predictor. |
-| `--simple` | Predictor Selection | Uses a **Simple** baseline predictor (e.g., 2 bit saturating counter). |
+```bash
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg
+.\bootstrap-vcpkg.bat
+vcpkg install glfw3
+```
 
-#### Examples
+**macOS (Homebrew example):**
 
-| Command | Description |
-| :--- | :--- |
-| `./cpu benchmark_1.s --GAg --log cout` | Analyze `benchmark_1.s` using the GAg method, outputting results to the console. |
-| `./cpu test_loop.s --PAg --log pag_run_metrics.txt` | Simulate `test_loop.s` using the PAg method and save the detailed metrics to a file. |
+```bash
+brew install glfw
+```
 
------
+---
 
-### 4\. Branch Predictor Mechanisms
+## 4. Getting Started
 
-The simulator supports and allows direct comparative analysis of the following dynamic prediction techniques:
+### 4.1 Building the Project
 
-| Predictor | Description | PHT Indexing Method |
-| :--- | :--- | :--- |
-| **Simple** | Baseline predictor, typically using a 2-bit counter| 
-| **Gshare** | Uses the branch instruction ids  XORed with the contents of the **Global History Register (GHR)** to index the Pattern History Table (PHT). | GHR $\oplus$ BRANCH_ID $\rightarrow$ PHT Index |
-| **GAg** | **Global History, Global PHT.** The GHR is used directly to index a single, shared PHT. | GHR $\rightarrow$ PHT Index |
-| **PAg** | **Per-Address History, Global PHT.** Each branch uses its own **Local History Register (LHR)** to index the PHT. | LHR $\rightarrow$ PHT Index |
+**Linux and MacOS:**
 
------
+```bash
+git clone https://github.com/f3rhd/cpuinsight.git
+cd cpuinsight
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
 
-### 5\. Metrics
+**Windows Visual Studio:**
 
-The output generated by the simulator provides quantitative measures used to determine the efficiency of the prediction algorithm under test. 
+```bash
+cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake"
+```
 
-| Metric | Calculation / Description | Significance |
-| :--- | :--- | :--- |
-| **Total Branches** | Total count of all conditional and unconditional branch instructions executed during the simulation. | Context for the total number of prediction events. |
-| **Prediction Accuracy** | $\frac{\text{Correct Predictions}}{\text{Total Branches}} \times 100\%$ | **Primary comparative metric.** Directly correlates with the predictor's effectiveness. |
-| **Mispredictions** | Absolute number of incorrect branch outcome guesses. | Each misprediction incurs a simulation pipeline penalty. |
-| **Register File** | Shows the final stage of the register file | For fun. | 
-| **Total Cost Units (Cycles)**| 	The simulated execution overhead. Calculated by applying a defined penalty (e.g., 3 units) for every mispredicted branch.	Minimization Target. | The predictor yielding the lowest cost is the most efficient. | 
+---
 
------
+## 5. Usage
 
-### 6\. Repository Structure
+### 5.1 Quick Start
 
-The project codebase is organized by functionality:
+Run your first assembly file **with GUI**:
 
-  * `main.cpp`: Manages command line arguments, project initialization, and the primary simulation loop control.
-  * `CPU.hpp`/`.cpp`: Contains the core execution unit, register file management, memory model, and the templated `PREDICTOR_TYPE` implementation.
-  * `parser_t.hpp`/`.cpp`: Implements logic for parsing the input assembly (`.s`) files into the simulator's internal program representation.
+```bash
+./cpu_visual examples/benchmark_1.s
+```
 
------
+Run **headless with logging**:
 
-### 7\. License
+```bash
+./cpu_visual examples/benchmark_1.s --nogui --GAg --log results.txt
+```
 
-This project is licensed under the MIT License. Refer to the `LICENSE.md` file for complete details.
+---
+
+### 5.2 Command-line Options
+
+| Option         | Description                 |
+| -------------- | --------------------------- |
+| `<input.s>`    | RV32IM assembly source file |
+| `--log cout`   | Print metrics to console    |
+| `--log <file>` | Save metrics to a file      |
+| `--gshare`     | Use Gshare predictor        |
+| `--GAg`        | Use GAg predictor           |
+| `--PAg`        | Use PAg predictor           |
+| `--simple`     | Use baseline predictor      |
+| `--nogui`      | Disable GUI                 |
+
+---
+
+### 5.3 GUI Mode
+
+* Launch the application (`./cpu_visual` using terminal)
+
+* GUI window shows:
+
+  * **Assembly instructions** with current instruction highlighted
+  * **Register file values** live
+  * **D-cache view**
+  * Optional statistics / metrics panel
+
+* Step through instructions or run at full speed
+
+* Adjust **execution speed** dynamically
+
+![Execution Flow Highlight](docs/images/execution_stepthrough.gif)
+
+---
+
+## 6. Repository Structure
+
+```
+├─ main.cpp                 # Entry point & command line handling
+├─ gui/                     # GUI code
+├─ parser/                  # Parser for assembly 
+├─ cpu/                     # CPU implementations and custom instruction data types
+├─ vendor/                  # Third-party libs: ImGui, GLFW
+├─ docs/                    # Documents & images
+├─ CMakeLists.txt           # Project build configuration
+```
+
+---
+
+## 7. Metrics
+
+| Metric                  | Description                                            |
+| ----------------------- | ------------------------------------------------------ |
+| **Total Branches**      | Total conditional/unconditional branches executed      |
+| **Prediction Accuracy** | % of correct predictions                               |
+| **Mispredictions**      | Number of incorrect guesses                            |
+| **Register File**       | Final register values (viewable in GUI)                |
+| **Total Cost Units**    | Simulated cycle cost including misprediction penalties |
+
+---
+
+## 8. License
+
+MIT License. See `LICENSE.md`.
+
+---
+

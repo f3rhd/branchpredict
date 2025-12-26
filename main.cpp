@@ -1,79 +1,96 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <iostream>
-
 #include "parser/parser.h"
 #include "cpu/cpu.h"
 
+#include "gui/gui_renderer.h"
+#include "gui/gui_elements.h"
+
+#include <fstream>
+#include <iostream>
+#include <chrono>
+
+template<typename T>
+void run_gui(CPU& cpu, const T& parse_result);
 int main(int argc, char** argv) {
-    std::string input_file;
-    std::string log_destination = "none"; 
-    CPU::PREDICTOR_TYPE predictor_type = CPU::PREDICTOR_TYPE::GSHARE; 
-
-    
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
-
-        if (arg == "--log") {
-            if (i + 1 < argc) {
-                log_destination = argv[i + 1];
-                i++; 
-            } else {
-                std::cerr << "Error: --log requires a destination (cout or a filename).\n";
-                return 1;
-            }
-        } else if (arg == "--gshare") {
-            predictor_type = CPU::PREDICTOR_TYPE::GSHARE;
-        } else if (arg == "--GAg") {
-            predictor_type = CPU::PREDICTOR_TYPE::GAg;
-        } else if (arg == "--PAg") {
-            predictor_type = CPU::PREDICTOR_TYPE::PAg;
-        } else if (arg == "--simple") {
-            predictor_type = CPU::PREDICTOR_TYPE::SIMPLE;
-        } else if (arg.rfind("--", 0) == 0) { // Checks if the argument starts with '--'
-            std::cerr << "Warning: Unknown option: " << arg << ". Ignoring.\n";
-        } else {
-            if (input_file.empty()) {
-                input_file = arg;
-            } else {
-                std::cerr << "Warning: Multiple input files found. Using first one: " << input_file << ".\n";
-            }
-        }
-    }
-
-
-    if (input_file.empty()) {
-        std::cerr << "Usage: " << argv[0] << " <input.s> [--log cout | --log <filename>] [--gshare | --GAg | --PAg | --simple]\n";
-        return 1;
-    }
-
-    std::ofstream log_file;
-    std::ostream* log_stream = nullptr;  
-	if (log_destination == "cout") {
-        log_stream = &std::cout;
-    } else if (log_destination != "none") {
-        log_file.open(log_destination);
-        if (!log_file.is_open()) {
-            std::cerr << "Error: Could not open log file '" << log_destination << "'\n";
-            return 1;
-        }
-        log_stream = &log_file;
-    } 
-
 
     parser_t parser;
-    CPU cpu(predictor_type); 
-    
-    cpu.load_program(parser.parse_program(input_file)); 
+    auto cli_info  = parser.parse_cli(argc, argv);
 
-    while (!cpu.halt()) {
-        cpu.execute();
+    if (!cli_info.valid)
+        return 1;
+
+    CPU cpu(cli_info.predictor);
+    auto parse_result = parser.parse_program(cli_info.input_file);
+
+    cpu.load_program(std::move(parse_result.first));
+
+    if (cli_info.enable_gui) {
+
+        run_gui(cpu,parse_result);
     }
-    
-    if (log_stream) {
-        cpu.log(*log_stream);  
+    else {
+        while (!cpu.endofprogram()) cpu.execute();
+    }
+    if (cli_info.log_dest == "cout")
+        cpu.log(std::cout);
+    else {
+        std::ofstream os(cli_info.log_dest);
+        cpu.log(os);
+    }
+}
+
+template<typename T>
+void run_gui(CPU& cpu,const T& parse_result) {
+
+    gui::renderer::init("BranchPredict", 800, 600);
+    GLFWwindow* window = gui::renderer::get_window();
+
+    if (!window)
+        return ;
+
+	float cpu_speed = 0;
+    CPU_EXECUTION action = CPU_EXECUTION::STOP;
+    bool follow_pc = false;
+	double accumulator = 0.0;
+    auto last_time = std::chrono::high_resolution_clock::now();
+    const double MAX_IPS = 60.0; 
+
+
+    while (!glfwWindowShouldClose(window)) {
+        gui::renderer::new_frame();
+        ImGui::SetNextWindowPos({ 0,0 });
+        ImGui::SetNextWindowSize(gui::renderer::get_window_size());
+        if (ImGui::Begin("##cpu_visual", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoTitleBar)) {
+
+            gui::draw(cpu, parse_result.second, follow_pc, action, cpu_speed);
+            auto now = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> delta = now - last_time;
+            last_time = now;
+
+            switch (action) {
+            case CPU_EXECUTION::RUN:
+                accumulator += cpu_speed * MAX_IPS * delta.count();
+                while (accumulator >= 1.0 && !cpu.endofprogram()) {
+                    cpu.execute();
+                    accumulator -= 1.0;
+                }
+                break;
+            case CPU_EXECUTION::STEP:
+                if (!cpu.endofprogram())
+                    cpu.execute();
+                action = CPU_EXECUTION::STOP;
+                break;
+            case CPU_EXECUTION::RESET:
+                cpu.reset();
+                break;
+            case CPU_EXECUTION::STOP:
+            default:
+                break;
+
+            }
+        }
+        ImGui::End();
+        gui::renderer::render_frame(window);
     }
 
-    return 0;
+    gui::renderer::cleanup(window);
 }

@@ -11,16 +11,19 @@
         exit(EXIT_FAILURE);                                       \
     }                                                             \
 
-program_t&& parser_t::parse_program(const std::string& src) {
+std::pair<cpu_program_t, std::vector<std::string>>
+parser_t::parse_program(const std::string & src) {
 	std::ifstream file(src);
+	std::vector<std::string> instruction_strs;
 	if (!file.is_open()) {
-		std::cout << "\033[31m" << "Error: \033" << "File path " << src << " doesn't exist.\n";
+		std::cout << "\033[31m" << "Error: \033[0m" << "File path " << src << " doesn't exist.\n";
 		exit(EXIT_FAILURE);
 	}
 	std::string line_raw;
 	while (std::getline(file, line_raw)) {
 		_line_number++;
 		tokenize_line_text(line_raw);
+		instruction_strs.push_back(std::move(line_raw));
 		_current_index = 0;
 		_current_token = &_line_tokens[0];
 		parse_instruction();
@@ -43,8 +46,59 @@ program_t&& parser_t::parse_program(const std::string& src) {
 		}
 	}
 	file.close();
-	return std::move(_program);
+
+	return { std::move(_program),std::move(instruction_strs)};
 }
+
+cli_args_t parser_t::parse_cli(int argc, char** argv) {
+    std::string input_file;
+    std::string log_destination = "none"; 
+    CPU::PREDICTOR_TYPE predictor_type = CPU::PREDICTOR_TYPE::GSHARE; 
+    bool enable_gui = true; // new GUI flag
+    bool valid = true;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+
+        if (arg == "--log") {
+            if (i + 1 < argc) {
+                log_destination = argv[i + 1];
+                i++; 
+            } else {
+                std::cerr << "Error: --log requires a destination (cout or a filename).\n";
+                valid = false;
+            }
+        } else if (arg == "--gshare") {
+            predictor_type = CPU::PREDICTOR_TYPE::GSHARE;
+        } else if (arg == "--GAg") {
+            predictor_type = CPU::PREDICTOR_TYPE::GAg;
+        } else if (arg == "--PAg") {
+            predictor_type = CPU::PREDICTOR_TYPE::PAg;
+        } else if (arg == "--simple") {
+            predictor_type = CPU::PREDICTOR_TYPE::SIMPLE;
+        } else if (arg == "--nogui") { // new flag
+            enable_gui = false;
+        } else if (arg.rfind("--", 0) == 0) {
+            std::cerr << "Warning: Unknown option: " << arg << ". Ignoring.\n";
+        } else {
+            if (input_file.empty()) {
+                input_file = arg;
+            } else {
+                std::cerr << "Warning: Multiple input files found. Using first one: " << input_file << ".\n";
+            }
+        }
+    }
+
+    if (input_file.empty()) {
+        std::cerr << "Usage: " << argv[0] 
+                  << " <input.s> [--log cout | --log <filename>] [--gshare | --GAg | --PAg | --simple] [--nogui]\n";
+        valid = false;
+    }
+
+    return { std::move(input_file), predictor_type, std::move(log_destination), enable_gui, valid };
+}
+
+
 
 void parser_t::parse_instruction() {
 	switch (_current_token->type) {

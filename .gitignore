@@ -1,4 +1,3 @@
-.vscode/
 
 transcript
 *.exe
@@ -94,3 +93,13 @@ $tf/
 *.cache
 *.dbmdl
 *.jfm
+vendor/SFML/lib/**/*
+vendor/SFML/bin/**/*
+vendor/glfw/lib/**/*
+
+!vendor/SFML/lib/
+!vendor/SFML/bin/
+!vendor/glfw/lib/
+
+!CMakeLists.txt
+*.ini
