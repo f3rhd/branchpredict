@@ -39,7 +39,7 @@ void CPU::update_pc(memory_addr_t next_pc_val) {
 	_pc = next_pc_val;
 }
 
-void CPU::load_program(cpu_program_t&& program_) {
+void CPU::load_program(cpu_program_t program_) {
 	_program = std::move(program_);
 }
 
