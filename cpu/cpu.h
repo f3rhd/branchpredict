@@ -15,7 +15,7 @@ public:
 	void 			  		reset();
 	bool 			  		endofprogram() const;
 	const cpu_reg_file_t& 	get_reg_file() const ;
-	void			  		load_program(cpu_program_t program_);
+	void			  		load_program(cpu_program_t&& program_);
 	void			  		update_bht(branch_instruction_id_t branch_label, bool branch_direction);
     bool			  		predict_branch(branch_instruction_id_t branch_id) const;
 	void			  		d_cache_commit(memory_addr_t mem_addr, data_t data);
