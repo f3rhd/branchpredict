@@ -66,10 +66,15 @@ void run_gui(CPU& cpu,const T& parse_result) {
 
             switch (action) {
             case CPU_EXECUTION::RUN:
-                accumulator += cpu_speed * MAX_IPS * delta.count();
-                while (accumulator >= 1.0 && !cpu.endofprogram()) {
-                    cpu.execute();
-                    accumulator -= 1.0;
+                if (!cpu.endofprogram()) {
+					accumulator += cpu_speed * MAX_IPS * delta.count();
+					while (accumulator >= 1.0 && !cpu.endofprogram()) {
+						cpu.execute();
+						accumulator -= 1.0;
+					}
+                }
+                else {
+                    accumulator = 0;
                 }
                 break;
             case CPU_EXECUTION::STEP:
