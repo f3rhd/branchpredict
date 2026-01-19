@@ -15,6 +15,10 @@ std::pair<cpu_program_t, std::vector<std::string>>
 parser_t::parse_program(const std::string & src) {
 	std::ifstream file(src);
 	std::vector<std::string> instruction_strs;
+	if (!src.ends_with(".s")) {
+		std::cout << "\033[31m" << "Error: \033[0m" << "File name should end with *.s.\n";
+		exit(EXIT_FAILURE);
+	}
 	if (!file.is_open()) {
 		std::cout << "\033[31m" << "Error: \033[0m" << "File path " << src << " doesn't exist.\n";
 		exit(EXIT_FAILURE);
@@ -23,7 +27,7 @@ parser_t::parse_program(const std::string & src) {
 	while (std::getline(file, line_raw)) {
 		_line_number++;
 		std::string line_better = tokenize_line_text(line_raw);
-		if(!line_better.empty())
+		if (!line_better.empty())
 			instruction_strs.push_back(std::move(line_better));
 		_current_index = 0;
 		_current_token = &_line_tokens[0];
@@ -48,7 +52,7 @@ parser_t::parse_program(const std::string & src) {
 	}
 	file.close();
 
-	return { std::move(_program),std::move(instruction_strs)};
+	return { std::move(_program),std::move(instruction_strs) };
 }
 
 cli_args_t parser_t::parse_cli(int argc, char** argv) {
